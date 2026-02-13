@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { ChevronLeft, ChevronRight, Settings, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, ChevronDown, ChevronUp, X, ArrowUp, ArrowDown } from 'lucide-react'
 import type { NodeTransform } from '../App'
 
 function NodeCard({
@@ -161,10 +161,14 @@ interface ControlsSidebarProps {
     animationNames: string[]
     speed: number
     loop: boolean
+    mode: 'single' | 'sequence'
+    sequence: string[]
     setEnabled: (v: boolean) => void
     setSelectedAnimation: (v: string) => void
     setSpeed: (v: number) => void
     setLoop: (v: boolean) => void
+    setMode: (v: 'single' | 'sequence') => void
+    setSequence: (v: string[]) => void
     onPlay: () => void
     onPause: () => void
     onStop: () => void
@@ -418,20 +422,137 @@ export default function ControlsSidebar({
               </CardHeader>
               {activeSection === 'animation' && (
                 <CardContent className="space-y-3">
+                  {/* Mode Selection */}
                   <div>
-                    <label className="text-xs text-muted-foreground">Animation</label>
-                    <select
-                      value={animationControls.selectedAnimation}
-                      onChange={(e) => animationControls.setSelectedAnimation(e.target.value)}
-                      className="w-full p-2 border rounded text-sm"
-                    >
-                      {animationControls.animationNames.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="text-xs text-muted-foreground mb-2 block">Mode</label>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={animationControls.mode === 'single' ? 'default' : 'outline'}
+                        onClick={() => animationControls.setMode('single')}
+                        className="flex-1 text-xs"
+                      >
+                        Single
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={animationControls.mode === 'sequence' ? 'default' : 'outline'}
+                        onClick={() => animationControls.setMode('sequence')}
+                        className="flex-1 text-xs"
+                      >
+                        Sequence
+                      </Button>
+                    </div>
                   </div>
+
+                  {/* Single Animation Mode */}
+                  {animationControls.mode === 'single' && (
+                    <>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Animation</label>
+                        <select
+                          value={animationControls.selectedAnimation}
+                          onChange={(e) => animationControls.setSelectedAnimation(e.target.value)}
+                          className="w-full p-2 border rounded text-sm"
+                        >
+                          {animationControls.animationNames.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Sequence Mode */}
+                  {animationControls.mode === 'sequence' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs text-muted-foreground">Sequence</label>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value && !animationControls.sequence.includes(e.target.value)) {
+                              animationControls.setSequence([...animationControls.sequence, e.target.value])
+                            }
+                            e.target.value = ''
+                          }}
+                          className="text-xs p-1 border rounded"
+                        >
+                          <option value="">Add Animation...</option>
+                          {animationControls.animationNames
+                            .filter((name) => !animationControls.sequence.includes(name))
+                            .map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {animationControls.sequence.length === 0 ? (
+                          <p className="text-xs text-muted-foreground text-center py-2">
+                            No animations in sequence
+                          </p>
+                        ) : (
+                          animationControls.sequence.map((animName, index) => (
+                            <div
+                              key={`${animName}-${index}`}
+                              className="flex items-center gap-1 p-2 bg-muted/50 rounded text-xs"
+                            >
+                              <span className="flex-1 truncate">{index + 1}. {animName}</span>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => {
+                                    if (index > 0) {
+                                      const newSeq = [...animationControls.sequence]
+                                      ;[newSeq[index - 1], newSeq[index]] = [newSeq[index], newSeq[index - 1]]
+                                      animationControls.setSequence(newSeq)
+                                    }
+                                  }}
+                                  disabled={index === 0}
+                                >
+                                  <ArrowUp className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => {
+                                    if (index < animationControls.sequence.length - 1) {
+                                      const newSeq = [...animationControls.sequence]
+                                      ;[newSeq[index], newSeq[index + 1]] = [newSeq[index + 1], newSeq[index]]
+                                      animationControls.setSequence(newSeq)
+                                    }
+                                  }}
+                                  disabled={index === animationControls.sequence.length - 1}
+                                >
+                                  <ArrowDown className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => {
+                                    animationControls.setSequence(
+                                      animationControls.sequence.filter((_, i) => i !== index)
+                                    )
+                                  }}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"

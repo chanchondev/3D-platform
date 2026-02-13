@@ -17,6 +17,8 @@ interface ModelProps {
   animationEnabled: boolean
   animationSpeed: number
   animationLoop: boolean
+  animationMode: 'single' | 'sequence'
+  animationSequence: string[]
   onAnimationNamesChange: (names: string[]) => void
   // Skeletons controls
   skeletonNames: string[]
@@ -63,6 +65,8 @@ const Model = forwardRef<any, ModelProps>(({
   animationEnabled,
   animationSpeed,
   animationLoop,
+  animationMode,
+  animationSequence,
   onAnimationNamesChange,
   skeletonNames: _skeletonNames,
   selectedSkeleton,
@@ -95,6 +99,8 @@ const Model = forwardRef<any, ModelProps>(({
   const { actions, mixer } = useAnimations(animations, groupRef)
   const currentActionRef = useRef<THREE.AnimationAction | null>(null)
   const skeletonHelperRef = useRef<THREE.SkeletonHelper | null>(null)
+  const sequenceIndexRef = useRef<number>(0)
+  const isPlayingSequenceRef = useRef<boolean>(false)
   
   // Helper function to traverse scene and collect data
   const traverseScene = (object: THREE.Object3D, callback: (obj: THREE.Object3D) => void) => {
@@ -317,24 +323,70 @@ const Model = forwardRef<any, ModelProps>(({
     onAnimationNamesChange(animationNames)
   }, [animationNames, onAnimationNamesChange])
 
+  // Function to play next animation in sequence
+  const playNextInSequence = () => {
+    if (animationMode !== 'sequence' || animationSequence.length === 0) return
+    
+    const nextIndex = sequenceIndexRef.current + 1
+    if (nextIndex >= animationSequence.length) {
+      if (animationLoop) {
+        sequenceIndexRef.current = 0
+      } else {
+        isPlayingSequenceRef.current = false
+        return
+      }
+    } else {
+      sequenceIndexRef.current = nextIndex
+    }
+
+    const nextAnimName = animationSequence[sequenceIndexRef.current]
+    const nextAction = actions[nextAnimName]
+    
+    if (nextAction) {
+      // Stop current animation
+      if (currentActionRef.current) {
+        currentActionRef.current.stop()
+        currentActionRef.current.reset()
+      }
+      
+      // Setup and play next animation
+      currentActionRef.current = nextAction
+      nextAction.setLoop(THREE.LoopOnce, 0)
+      nextAction.setEffectiveTimeScale(animationSpeed)
+      nextAction.reset()
+      nextAction.play()
+    }
+  }
+
   // Expose animation control methods
   useImperativeHandle(ref, () => ({
     play: () => {
-      if (currentActionRef.current) {
+      if (animationMode === 'sequence' && animationSequence.length > 0) {
+        isPlayingSequenceRef.current = true
+        sequenceIndexRef.current = 0
+        playNextInSequence()
+      } else if (currentActionRef.current) {
         currentActionRef.current.play()
       }
     },
     pause: () => {
+      if (animationMode === 'sequence') {
+        isPlayingSequenceRef.current = false
+      }
       if (currentActionRef.current) {
         currentActionRef.current.paused = !currentActionRef.current.paused
       }
     },
     stop: () => {
+      isPlayingSequenceRef.current = false
+      sequenceIndexRef.current = 0
       if (currentActionRef.current) {
         currentActionRef.current.stop()
       }
     },
     reset: () => {
+      isPlayingSequenceRef.current = false
+      sequenceIndexRef.current = 0
       if (currentActionRef.current) {
         currentActionRef.current.reset()
       }
@@ -343,7 +395,7 @@ const Model = forwardRef<any, ModelProps>(({
 
   // Update animation when selection changes
   useEffect(() => {
-    if (!hasAnimations || !selectedAnimation) {
+    if (!hasAnimations) {
       currentActionRef.current = null
       return
     }
@@ -356,19 +408,51 @@ const Model = forwardRef<any, ModelProps>(({
       }
     })
 
-    // Get and configure selected animation
-    const action = actions[selectedAnimation]
-    if (action) {
-      currentActionRef.current = action
-      action.setLoop(animationLoop ? THREE.LoopRepeat : THREE.LoopOnce, animationLoop ? Infinity : 0)
-      action.setEffectiveTimeScale(animationSpeed)
-      if (animationEnabled) {
-        action.play()
+    isPlayingSequenceRef.current = false
+    sequenceIndexRef.current = 0
+
+    if (animationMode === 'sequence') {
+      // Sequence mode
+      if (animationSequence.length === 0) {
+        currentActionRef.current = null
+        return
+      }
+      
+      // Setup first animation in sequence
+      const firstAnimName = animationSequence[0]
+      const action = actions[firstAnimName]
+      if (action) {
+        currentActionRef.current = action
+        action.setLoop(THREE.LoopOnce, 0)
+        action.setEffectiveTimeScale(animationSpeed)
+        if (animationEnabled) {
+          isPlayingSequenceRef.current = true
+          action.reset()
+          action.play()
+        }
+      } else {
+        currentActionRef.current = null
       }
     } else {
-      currentActionRef.current = null
+      // Single mode
+      if (!selectedAnimation) {
+        currentActionRef.current = null
+        return
+      }
+
+      const action = actions[selectedAnimation]
+      if (action) {
+        currentActionRef.current = action
+        action.setLoop(animationLoop ? THREE.LoopRepeat : THREE.LoopOnce, animationLoop ? Infinity : 0)
+        action.setEffectiveTimeScale(animationSpeed)
+        if (animationEnabled) {
+          action.play()
+        }
+      } else {
+        currentActionRef.current = null
+      }
     }
-  }, [selectedAnimation, animationEnabled, actions, hasAnimations, animationLoop, animationSpeed])
+  }, [selectedAnimation, animationEnabled, actions, hasAnimations, animationLoop, animationSpeed, animationMode, animationSequence])
 
   // Update speed and loop mode
   useEffect(() => {
@@ -379,10 +463,23 @@ const Model = forwardRef<any, ModelProps>(({
     }
   }, [animationSpeed, animationLoop])
 
-  // Update animation mixer each frame
+  // Update animation mixer each frame and check for sequence completion
   useFrame((_state, delta) => {
     if (mixer) {
       mixer.update(delta)
+      
+      // Check if current animation in sequence has finished
+      if (animationMode === 'sequence' && isPlayingSequenceRef.current && currentActionRef.current && animationSequence.length > 0) {
+        const action = currentActionRef.current
+        const clip = action.getClip()
+        const duration = clip.duration
+        const time = action.time
+        
+        // Check if animation has finished (with small threshold for precision)
+        if (time >= duration - 0.01) {
+          playNextInSequence()
+        }
+      }
     }
   })
 
@@ -467,6 +564,8 @@ interface Viewer3DProps {
   animationEnabled: boolean
   animationSpeed: number
   animationLoop: boolean
+  animationMode: 'single' | 'sequence'
+  animationSequence: string[]
   onAnimationNamesChange: (names: string[]) => void
   // Lighting controls
   ambientIntensity: number
@@ -528,6 +627,8 @@ export default function Viewer3D({
   animationEnabled,
   animationSpeed,
   animationLoop,
+  animationMode,
+  animationSequence,
   onAnimationNamesChange,
   ambientIntensity,
   directionalIntensity,
@@ -615,6 +716,8 @@ export default function Viewer3D({
               animationEnabled={animationEnabled}
               animationSpeed={animationSpeed}
               animationLoop={animationLoop}
+              animationMode={animationMode}
+              animationSequence={animationSequence}
               onAnimationNamesChange={onAnimationNamesChange}
               skeletonNames={skeletonNames}
               selectedSkeleton={selectedSkeleton}

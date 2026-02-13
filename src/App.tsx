@@ -45,6 +45,8 @@ function App() {
   const [animationEnabled, setAnimationEnabled] = useState(false)
   const [animationSpeed, setAnimationSpeed] = useState(1)
   const [animationLoop, setAnimationLoop] = useState(true)
+  const [animationMode, setAnimationMode] = useState<'single' | 'sequence'>('single')
+  const [animationSequence, setAnimationSequence] = useState<string[]>([])
 
   // Lighting controls state
   const [ambientIntensity, setAmbientIntensity] = useState(0.5)
@@ -127,6 +129,8 @@ function App() {
       setScale(1)
       setSelectedAnimation('')
       setAnimationEnabled(false)
+      setAnimationSequence([])
+      setAnimationMode('single')
       // Reset new controls
       setSelectedSkeleton('')
       setSkeletonVisible(true)
@@ -246,10 +250,14 @@ function App() {
               animationNames,
               speed: animationSpeed,
               loop: animationLoop,
+              mode: animationMode,
+              sequence: animationSequence,
               setEnabled: setAnimationEnabled,
               setSelectedAnimation,
               setSpeed: setAnimationSpeed,
               setLoop: setAnimationLoop,
+              setMode: setAnimationMode,
+              setSequence: setAnimationSequence,
               onPlay: handleAnimationPlay,
               onPause: handleAnimationPause,
               onStop: handleAnimationStop,
@@ -351,6 +359,8 @@ function App() {
               animationEnabled={animationEnabled}
               animationSpeed={animationSpeed}
               animationLoop={animationLoop}
+              animationMode={animationMode}
+              animationSequence={animationSequence}
               onAnimationNamesChange={handleAnimationNamesChange}
               ambientIntensity={ambientIntensity}
               directionalIntensity={directionalIntensity}
