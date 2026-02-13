@@ -82,6 +82,7 @@ function App() {
   const [materialOpacity, setMaterialOpacity] = useState(1)
   const [materialEmissive, setMaterialEmissive] = useState('#000000')
   const [materialEmissiveIntensity, setMaterialEmissiveIntensity] = useState(0)
+  const [materialTextureMap, setMaterialTextureMap] = useState<Record<string, string>>({})
 
   // Textures controls state
   const [textureNames, setTextureNames] = useState<string[]>([])
@@ -142,6 +143,7 @@ function App() {
       setMaterialOpacity(1)
       setMaterialEmissive('#000000')
       setMaterialEmissiveIntensity(0)
+      setMaterialTextureMap({})
       setSelectedTexture('')
       setTextureScaleX(1)
       setTextureScaleY(1)
@@ -314,6 +316,7 @@ function App() {
               materialOpacity,
               materialEmissive,
               materialEmissiveIntensity,
+              materialTextureMap,
               setMaterialNames,
               setSelectedMaterial,
               setMaterialColor,
@@ -322,6 +325,7 @@ function App() {
               setMaterialOpacity,
               setMaterialEmissive,
               setMaterialEmissiveIntensity,
+              setMaterialTextureMap,
             }}
             textureControls={{
               textureNames,
@@ -388,6 +392,7 @@ function App() {
               materialOpacity={materialOpacity}
               materialEmissive={materialEmissive}
               materialEmissiveIntensity={materialEmissiveIntensity}
+              materialTextureMap={materialTextureMap}
               onMaterialNamesChange={setMaterialNames}
               textureNames={textureNames}
               selectedTexture={selectedTexture}

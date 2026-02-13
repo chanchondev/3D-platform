@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { ChevronLeft, ChevronRight, Settings, ChevronDown, ChevronUp, X, ArrowUp, ArrowDown } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, ChevronDown, ChevronUp, X, ArrowUp, ArrowDown, Upload, Trash2 } from 'lucide-react'
 import type { NodeTransform } from '../App'
 
 function NodeCard({
@@ -225,6 +225,7 @@ interface ControlsSidebarProps {
     materialOpacity: number
     materialEmissive: string
     materialEmissiveIntensity: number
+    materialTextureMap: Record<string, string>
     setMaterialNames: (v: string[]) => void
     setSelectedMaterial: (v: string) => void
     setMaterialColor: (v: string) => void
@@ -233,6 +234,7 @@ interface ControlsSidebarProps {
     setMaterialOpacity: (v: number) => void
     setMaterialEmissive: (v: string) => void
     setMaterialEmissiveIntensity: (v: number) => void
+    setMaterialTextureMap: (v: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void
   }
   textureControls: {
     textureNames: string[]
@@ -921,6 +923,76 @@ export default function ControlsSidebar({
                           onChange={(e) => materialControls.setMaterialColor(e.target.value)}
                           className="w-full h-10 rounded"
                         />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-2 block">Texture Map (PNG/JPG)</label>
+                        <div className="space-y-2">
+                          {materialControls.materialTextureMap[materialControls.selectedMaterial] ? (
+                            <div className="space-y-2">
+                              <div className="relative">
+                                <img
+                                  src={materialControls.materialTextureMap[materialControls.selectedMaterial]}
+                                  alt="Texture preview"
+                                  className="w-full h-20 object-cover rounded border border-border"
+                                />
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="w-full text-xs"
+                                onClick={() => {
+                                  const textureUrl = materialControls.materialTextureMap[materialControls.selectedMaterial]
+                                  if (textureUrl && textureUrl.startsWith('blob:')) {
+                                    URL.revokeObjectURL(textureUrl)
+                                  }
+                                  materialControls.setMaterialTextureMap((prev) => {
+                                    const next = { ...prev }
+                                    delete next[materialControls.selectedMaterial]
+                                    return next
+                                  })
+                                }}
+                              >
+                                <Trash2 className="mr-1 h-3 w-3" />
+                                Remove Texture
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/jpg"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) {
+                                    const url = URL.createObjectURL(file)
+                                    materialControls.setMaterialTextureMap((prev) => ({
+                                      ...prev,
+                                      [materialControls.selectedMaterial]: url,
+                                    }))
+                                  }
+                                  // Reset input so same file can be selected again
+                                  e.target.value = ''
+                                }}
+                                className="hidden"
+                                id={`texture-upload-${materialControls.selectedMaterial}`}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full text-xs"
+                                onClick={() => {
+                                  document.getElementById(`texture-upload-${materialControls.selectedMaterial}`)?.click()
+                                }}
+                              >
+                                <Upload className="mr-1 h-3 w-3" />
+                                Upload Texture
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Texture will replace base color
+                        </p>
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Metalness</label>

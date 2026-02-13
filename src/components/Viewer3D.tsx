@@ -35,6 +35,7 @@ interface ModelProps {
   materialOpacity: number
   materialEmissive: string
   materialEmissiveIntensity: number
+  materialTextureMap: Record<string, string>
   onMaterialNamesChange: (names: string[]) => void
   // Textures controls
   textureNames: string[]
@@ -81,6 +82,7 @@ const Model = forwardRef<any, ModelProps>(({
   materialOpacity,
   materialEmissive,
   materialEmissiveIntensity,
+  materialTextureMap,
   onMaterialNamesChange,
   textureNames: _textureNames,
   selectedTexture,
@@ -101,6 +103,7 @@ const Model = forwardRef<any, ModelProps>(({
   const skeletonHelperRef = useRef<THREE.SkeletonHelper | null>(null)
   const sequenceIndexRef = useRef<number>(0)
   const isPlayingSequenceRef = useRef<boolean>(false)
+  const materialTexturesRef = useRef<Record<string, THREE.Texture>>({})
   
   // Helper function to traverse scene and collect data
   const traverseScene = (object: THREE.Object3D, callback: (obj: THREE.Object3D) => void) => {
@@ -241,37 +244,131 @@ const Model = forwardRef<any, ModelProps>(({
   useEffect(() => {
     if (!scene || !selectedMaterial) return
 
-    traverseScene(scene, (obj) => {
-      if ((obj as any).material) {
-        const material = (obj as any).material
-        const materialsArray = Array.isArray(material) ? material : [material]
+    const textureUrl = materialTextureMap[selectedMaterial]
+    const textureLoader = new THREE.TextureLoader()
+
+    // Helper function to apply material properties
+    const applyMaterialProperties = (mat: any, texture: THREE.Texture | null = null) => {
+      if (texture) {
+        // Dispose old texture if exists
+        if (mat.map && mat.map !== texture && materialTexturesRef.current[selectedMaterial] !== mat.map) {
+          mat.map.dispose()
+        }
+        mat.map = texture
+        mat.needsUpdate = true
+      } else {
+        // Remove texture map if exists
+        if (mat.map && materialTexturesRef.current[selectedMaterial] === mat.map) {
+          mat.map.dispose()
+          materialTexturesRef.current[selectedMaterial] = null as any
+        }
+        mat.map = null
+        mat.needsUpdate = true
         
-        materialsArray.forEach((mat: any) => {
-          if (mat.name === selectedMaterial) {
-            if (mat.color) {
-              mat.color.setHex(parseInt(materialColor.replace('#', ''), 16))
-            }
-            if (mat.metalness !== undefined) {
-              mat.metalness = materialMetalness
-            }
-            if (mat.roughness !== undefined) {
-              mat.roughness = materialRoughness
-            }
-            if (mat.opacity !== undefined) {
-              mat.opacity = materialOpacity
-              mat.transparent = materialOpacity < 1
-            }
-            if (mat.emissive) {
-              mat.emissive.setHex(parseInt(materialEmissive.replace('#', ''), 16))
-            }
-            if (mat.emissiveIntensity !== undefined) {
-              mat.emissiveIntensity = materialEmissiveIntensity
-            }
-          }
-        })
+        // Use color
+        if (mat.color) {
+          mat.color.setHex(parseInt(materialColor.replace('#', ''), 16))
+        }
       }
-    })
-  }, [scene, selectedMaterial, materialColor, materialMetalness, materialRoughness, materialOpacity, materialEmissive, materialEmissiveIntensity])
+      
+      // Apply other properties
+      if (mat.metalness !== undefined) {
+        mat.metalness = materialMetalness
+      }
+      if (mat.roughness !== undefined) {
+        mat.roughness = materialRoughness
+      }
+      if (mat.opacity !== undefined) {
+        mat.opacity = materialOpacity
+        mat.transparent = materialOpacity < 1
+      }
+      if (mat.emissive) {
+        mat.emissive.setHex(parseInt(materialEmissive.replace('#', ''), 16))
+      }
+      if (mat.emissiveIntensity !== undefined) {
+        mat.emissiveIntensity = materialEmissiveIntensity
+      }
+    }
+
+    // Load texture if URL exists
+    if (textureUrl) {
+      // Dispose old texture for this material if exists
+      if (materialTexturesRef.current[selectedMaterial]) {
+        materialTexturesRef.current[selectedMaterial].dispose()
+      }
+
+      textureLoader.load(
+        textureUrl,
+        (texture) => {
+          texture.flipY = false // GLTF textures are typically flipped
+          texture.needsUpdate = true
+          materialTexturesRef.current[selectedMaterial] = texture
+
+          traverseScene(scene, (obj) => {
+            if ((obj as any).material) {
+              const material = (obj as any).material
+              const materialsArray = Array.isArray(material) ? material : [material]
+              
+              materialsArray.forEach((mat: any) => {
+                if (mat.name === selectedMaterial) {
+                  applyMaterialProperties(mat, texture)
+                }
+              })
+            }
+          })
+        },
+        undefined,
+        (error) => {
+          console.error('Error loading texture:', error)
+          // On error, apply properties without texture
+          traverseScene(scene, (obj) => {
+            if ((obj as any).material) {
+              const material = (obj as any).material
+              const materialsArray = Array.isArray(material) ? material : [material]
+              
+              materialsArray.forEach((mat: any) => {
+                if (mat.name === selectedMaterial) {
+                  applyMaterialProperties(mat, null)
+                }
+              })
+            }
+          })
+        }
+      )
+    } else {
+      // No texture, use color instead
+      traverseScene(scene, (obj) => {
+        if ((obj as any).material) {
+          const material = (obj as any).material
+          const materialsArray = Array.isArray(material) ? material : [material]
+          
+          materialsArray.forEach((mat: any) => {
+            if (mat.name === selectedMaterial) {
+              applyMaterialProperties(mat, null)
+            }
+          })
+        }
+      })
+    }
+
+    // Cleanup function
+    return () => {
+      // Don't dispose here as texture might still be in use
+      // Cleanup will happen when material changes or component unmounts
+    }
+  }, [scene, selectedMaterial, materialColor, materialMetalness, materialRoughness, materialOpacity, materialEmissive, materialEmissiveIntensity, materialTextureMap])
+
+  // Cleanup textures on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(materialTexturesRef.current).forEach((texture) => {
+        if (texture) {
+          texture.dispose()
+        }
+      })
+      materialTexturesRef.current = {}
+    }
+  }, [])
 
   // Control textures
   useEffect(() => {
@@ -598,6 +695,7 @@ interface Viewer3DProps {
   materialOpacity: number
   materialEmissive: string
   materialEmissiveIntensity: number
+  materialTextureMap: Record<string, string>
   onMaterialNamesChange: (names: string[]) => void
   // Textures controls
   textureNames: string[]
@@ -656,6 +754,7 @@ export default function Viewer3D({
   materialOpacity,
   materialEmissive,
   materialEmissiveIntensity,
+  materialTextureMap,
   onMaterialNamesChange,
   textureNames,
   selectedTexture,
@@ -730,10 +829,11 @@ export default function Viewer3D({
               materialMetalness={materialMetalness}
               materialRoughness={materialRoughness}
               materialOpacity={materialOpacity}
-              materialEmissive={materialEmissive}
-              materialEmissiveIntensity={materialEmissiveIntensity}
-              onMaterialNamesChange={onMaterialNamesChange}
-              textureNames={textureNames}
+  materialEmissive={materialEmissive}
+  materialEmissiveIntensity={materialEmissiveIntensity}
+  materialTextureMap={materialTextureMap}
+  onMaterialNamesChange={onMaterialNamesChange}
+  textureNames={textureNames}
               selectedTexture={selectedTexture}
               textureScaleX={textureScaleX}
               textureScaleY={textureScaleY}
