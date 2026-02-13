@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Viewer3D from './components/Viewer3D'
 import ControlsSidebar from './components/ControlsSidebar'
+import RightDrawer from './components/RightDrawer'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
 import { Button } from './components/ui/button'
 import { Upload } from 'lucide-react'
@@ -229,6 +230,7 @@ function App() {
       {/* 3D Viewer */}
       {selectedModel && (
         <>
+          <RightDrawer />
           <ControlsSidebar
             modelControls={{
               positionX,
@@ -406,7 +408,7 @@ function App() {
               nodeTransforms={nodeTransforms}
               onNodeNamesChange={handleNodeNamesChange}
             />
-            <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
               <Button
                 variant="outline"
                 onClick={() => document.getElementById('file-upload')?.click()}
