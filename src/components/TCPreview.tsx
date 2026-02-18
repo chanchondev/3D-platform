@@ -1,77 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { ChevronDown, ChevronRight, GripHorizontal, List, X } from 'lucide-react'
-
-interface Section {
-  id: string
-  title: string
-  children?: Section[]
-}
-
-const defaultSections: Section[] = [
-  {
-    id: 'model',
-    title: 'Model Controls',
-    children: [
-      { id: 'model-position', title: 'Position' },
-      { id: 'model-rotation', title: 'Rotation' },
-      { id: 'model-scale', title: 'Scale' },
-    ],
-  },
-  {
-    id: 'animation',
-    title: 'Animation',
-    children: [
-      { id: 'anim-playback', title: 'Playback' },
-      { id: 'anim-sequence', title: 'Sequence' },
-    ],
-  },
-  {
-    id: 'lighting',
-    title: 'Lighting',
-    children: [
-      { id: 'light-ambient', title: 'Ambient' },
-      { id: 'light-directional', title: 'Directional' },
-    ],
-  },
-  {
-    id: 'camera',
-    title: 'Camera',
-    children: [
-      { id: 'cam-position', title: 'Position' },
-      { id: 'cam-fov', title: 'Field of View' },
-    ],
-  },
-  {
-    id: 'scene',
-    title: 'Scene',
-    children: [
-      { id: 'scene-bg', title: 'Background' },
-      { id: 'scene-grid', title: 'Grid' },
-    ],
-  },
-  {
-    id: 'materials',
-    title: 'Materials',
-  },
-  {
-    id: 'annotations',
-    title: 'Annotations',
-    children: [
-      { id: 'anno-notes', title: 'Notes' },
-      { id: 'anno-text', title: 'Text' },
-    ],
-  },
-]
+import { GripHorizontal, List, Play, X } from 'lucide-react'
+import type { TocSection } from '../types'
 
 interface TCPreviewProps {
-  sections?: Section[]
+  sections: TocSection[]
+  activeSectionId?: string | null
+  onSectionClick?: (section: TocSection) => void
 }
 
-export default function TCPreview({
-  sections = defaultSections,
-}: TCPreviewProps) {
+export default function TCPreview({ sections, activeSectionId, onSectionClick }: TCPreviewProps) {
   const [isOpen, setIsOpen] = useState(true)
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
 
   const [position, setPosition] = useState({ x: window.innerWidth - 260 - 16, y: 16 })
   const [isDragging, setIsDragging] = useState(false)
@@ -119,15 +57,6 @@ export default function TCPreview({
     window.addEventListener('resize', clamp)
     return () => window.removeEventListener('resize', clamp)
   }, [])
-
-  const toggleSection = (id: string) => {
-    setExpandedSections((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
 
   return (
     <div
@@ -180,41 +109,29 @@ export default function TCPreview({
             </button>
           </div>
 
-          {/* Sections */}
+          {/* Sections (flat list) */}
           <div className="max-h-[50vh] overflow-y-auto py-1.5">
-            {sections.map((section) => (
-              <div key={section.id}>
+            {sections.map((item) => {
+              const isActive = activeSectionId === item.id
+              return (
                 <button
-                  onClick={() => section.children && toggleSection(section.id)}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm font-medium text-neutral-700 hover:bg-white/50 transition-colors"
+                  key={item.id}
+                  onClick={() => onSectionClick?.(item)}
+                  className={`w-full flex items-center gap-2 px-4 py-2 text-left text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-blue-500/15 text-blue-700'
+                      : 'text-neutral-700 hover:bg-white/50'
+                  }`}
                 >
-                  {section.children ? (
-                    expandedSections.has(section.id) ? (
-                      <ChevronDown className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-                    ) : (
-                      <ChevronRight className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-                    )
+                  {item.animationName ? (
+                    <Play className={`h-3 w-3 shrink-0 ${isActive ? 'text-blue-600' : 'text-neutral-400'}`} />
                   ) : (
-                    <span className="w-3.5 shrink-0" />
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-blue-500' : 'bg-neutral-400'}`} />
                   )}
-                  <span>{section.title}</span>
+                  <span className="truncate">{item.title}</span>
                 </button>
-
-                {section.children && expandedSections.has(section.id) && (
-                  <div className="pb-1">
-                    {section.children.map((child) => (
-                      <button
-                        key={child.id}
-                        className="w-full flex items-center gap-2 pl-9 pr-4 py-1.5 text-left text-sm text-neutral-500 hover:text-neutral-800 hover:bg-white/40 transition-colors"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-neutral-300 shrink-0" />
-                        <span>{child.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
