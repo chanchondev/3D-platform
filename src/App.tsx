@@ -2,6 +2,8 @@ import { useState } from 'react'
 import Viewer3D from './components/Viewer3D'
 import ControlsSidebar from './components/ControlsSidebar'
 import RightDrawer from './components/RightDrawer'
+import TableOfContentsDrawer from './components/TableOfContentsDrawer'
+import TCPreview from './components/TCPreview'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
 import { Button } from './components/ui/button'
 import { Upload, Trash2 } from 'lucide-react'
@@ -27,6 +29,7 @@ function App() {
   // Drawer controls state
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(true)
   const [rightDrawerOpen, setRightDrawerOpen] = useState(false)
+  const [tocDrawerOpen, setTocDrawerOpen] = useState(false)
 
   // Model controls state
   const [positionX, setPositionX] = useState(0)
@@ -332,6 +335,11 @@ function App() {
       {/* 3D Viewer */}
       {selectedModel && (
         <>
+          <TCPreview />
+          <TableOfContentsDrawer
+            isOpen={tocDrawerOpen}
+            setIsOpen={setTocDrawerOpen}
+          />
           <RightDrawer 
             isOpen={rightDrawerOpen} 
             setIsOpen={setRightDrawerOpen}
@@ -492,6 +500,7 @@ function App() {
               ) {
                 setLeftDrawerOpen(false)
                 setRightDrawerOpen(false)
+                setTocDrawerOpen(false)
               }
             }}
           >
