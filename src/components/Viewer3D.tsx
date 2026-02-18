@@ -902,10 +902,34 @@ interface Viewer3DProps {
   onNoteUpdate: (id: string, updates: Partial<NoteAnnotation>) => void
   onNoteDelete: (id: string) => void
   onNoteEdit?: (id: string) => void
+  /** เมื่อกด "ไปที่หมุด" ใน Annotations ให้เล็งกล้องไปที่ตำแหน่งนี้ */
+  focusNotePosition: { x: number; y: number; z: number } | null
+  onFocusNoteDone: () => void
+  /** โหมดย้ายหมุด: id ของ Note ที่เปิดโหมด (ลากแล้วปล่อย = off) */
+  movingNoteId: string | null
+  onEndMoveNote: () => void
   // Text annotations
   textAnnotations: TextAnnotation[]
   isPlacingText: boolean
   onTextPlace: (position: { x: number; y: number; z: number }) => void
+}
+
+// เมื่อมี focusNotePosition ให้ตั้ง OrbitControls target ไปที่ตำแหน่งนั้น (ใช้หลังกด "ไปที่หมุด")
+function FocusNoteEffect({
+  focusNotePosition,
+  controlsRef,
+  onDone,
+}: {
+  focusNotePosition: { x: number; y: number; z: number } | null
+  controlsRef: { current: { target: THREE.Vector3 } | null }
+  onDone: () => void
+}) {
+  useEffect(() => {
+    if (!focusNotePosition || !controlsRef.current) return
+    controlsRef.current.target.set(focusNotePosition.x, focusNotePosition.y, focusNotePosition.z)
+    onDone()
+  }, [focusNotePosition, controlsRef, onDone])
+  return null
 }
 
 // Emit canvas bounds for overlay (screen position calculation)
@@ -1120,12 +1144,17 @@ export default function Viewer3D({
   onNoteUpdate,
   onNoteDelete,
   onNoteEdit,
+  focusNotePosition,
+  onFocusNoteDone,
+  movingNoteId,
+  onEndMoveNote,
   textAnnotations,
   isPlacingText,
   onTextPlace,
 }: Viewer3DProps) {
   const controlsRef = useRef<any>(null)
   const modelRef = useRef<any>(null)
+  const [controlsEnabled, setControlsEnabled] = useState(true)
 
   // Expose model ref to parent
   useEffect(() => {
@@ -1211,7 +1240,22 @@ export default function Viewer3D({
           )}
           <CanvasInfoEmitter />
           {notes.map((note) => (
-            <NoteMarker3D key={note.id} note={note} />
+            <NoteMarker3D
+              key={note.id}
+              note={note}
+              isMoving={movingNoteId === note.id}
+              onPositionChange={(pos) =>
+                onNoteUpdate(note.id, {
+                  positionX: pos.x,
+                  positionY: pos.y,
+                  positionZ: pos.z,
+                  offsetY: 0,
+                })
+              }
+              onMoveEnd={onEndMoveNote}
+              onDragStart={() => setControlsEnabled(false)}
+              onDragEnd={() => setControlsEnabled(true)}
+            />
           ))}
           <TextAnnotations textAnnotations={textAnnotations} />
           <ClickHandler 
@@ -1223,10 +1267,16 @@ export default function Viewer3D({
           />
           <OrbitControls
             ref={controlsRef}
+            enabled={controlsEnabled}
             enableDamping
             dampingFactor={0.05}
             minDistance={1}
             maxDistance={100}
+          />
+          <FocusNoteEffect
+            focusNotePosition={focusNotePosition}
+            controlsRef={controlsRef}
+            onDone={onFocusNoteDone}
           />
           <Environment preset="sunset" />
         </Suspense>
