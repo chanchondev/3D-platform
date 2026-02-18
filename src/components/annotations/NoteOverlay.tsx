@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import NoteCard from './NoteCard'
-import type { NoteAnnotation } from '../App'
+import type { NoteAnnotation } from '../../types'
 
 interface NoteOverlayProps {
   notes: NoteAnnotation[]
@@ -13,7 +13,7 @@ const NOTE_COLOR = '#ef4444'
 
 export default function NoteOverlay({
   notes,
-  onNoteUpdate,
+  onNoteUpdate: _onNoteUpdate,
   onNoteDelete,
   onNoteEdit,
 }: NoteOverlayProps) {
