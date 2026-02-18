@@ -1,4 +1,4 @@
-import { Suspense, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { Suspense, useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera, Environment, Grid, useGLTF, useAnimations, Html } from '@react-three/drei'
 import * as THREE from 'three'
@@ -106,6 +106,8 @@ const Model = forwardRef<any, ModelProps>(({
   const { actions, mixer } = useAnimations(animations, groupRef)
   const currentActionRef = useRef<THREE.AnimationAction | null>(null)
   const skeletonHelperRef = useRef<THREE.SkeletonHelper | null>(null)
+  const [skeletonHelperObject, setSkeletonHelperObject] = useState<THREE.SkeletonHelper | null>(null)
+  const skeletonNameByRef = useRef<Map<THREE.Skeleton, string>>(new Map())
   const sequenceIndexRef = useRef<number>(0)
   const isPlayingSequenceRef = useRef<boolean>(false)
   const materialTexturesRef = useRef<Record<string, THREE.Texture>>({})
@@ -121,22 +123,25 @@ const Model = forwardRef<any, ModelProps>(({
   useEffect(() => {
     if (!scene) return
 
-    const skeletons: string[] = []
+    const skeletonNamesList: string[] = []
     const materials: string[] = []
     const textures: string[] = []
     const nodes: string[] = []
     const initialNodeTransforms: Record<string, NodeTransform> = {}
+    const seenSkeletons = new Set<THREE.Skeleton>()
+    skeletonNameByRef.current.clear()
 
     traverseScene(scene, (obj) => {
-      // Collect skeletons
-      if ((obj as any).skeleton) {
-        const skeleton = (obj as any).skeleton
-        if (skeleton.bones && skeleton.bones.length > 0) {
-          const skeletonName = obj.name || `Skeleton_${skeletons.length}`
-          if (!skeletons.includes(skeletonName)) {
-            skeletons.push(skeletonName)
-          }
-        }
+      // Collect skeletons: หนึ่งชื่อต่อหนึ่ง skeleton (ใช้ root bone name เพื่อให้ดึงออกมาโชว์ได้)
+      const mesh = obj as THREE.SkinnedMesh
+      if (mesh.isSkinnedMesh && mesh.skeleton?.bones?.length) {
+        const sk = mesh.skeleton
+        if (seenSkeletons.has(sk)) return
+        seenSkeletons.add(sk)
+        const rootBone = sk.bones.find((b: THREE.Bone) => !b.parent || !sk.bones.includes(b.parent as THREE.Bone)) ?? sk.bones[0]
+        const name = (rootBone?.name || mesh.name || `Skeleton_${skeletonNamesList.length}`).trim() || `Skeleton_${skeletonNamesList.length}`
+        skeletonNamesList.push(name)
+        skeletonNameByRef.current.set(sk, name)
       }
 
       // Collect materials
@@ -193,56 +198,76 @@ const Model = forwardRef<any, ModelProps>(({
       }
     })
 
-    onSkeletonNamesChange(skeletons)
+    onSkeletonNamesChange(skeletonNamesList)
     onMaterialNamesChange(materials)
     onTextureNamesChange(textures)
     onNodeNamesChange(nodes, initialNodeTransforms)
   }, [scene, onSkeletonNamesChange, onMaterialNamesChange, onTextureNamesChange, onNodeNamesChange])
 
-  // Control skeleton visibility
+  // Control skeleton visibility (ใช้ชื่อจาก skeletonNameByRef ให้ตรงกับ dropdown)
   useEffect(() => {
     if (!scene) return
 
     traverseScene(scene, (obj) => {
-      if ((obj as any).skeleton && (selectedSkeleton === '' || obj.name === selectedSkeleton)) {
-        const skeleton = (obj as any).skeleton
-        if (skeleton.bones) {
-          skeleton.bones.forEach((bone: THREE.Bone) => {
-            bone.visible = skeletonVisible
-          })
-        }
-      }
+      const mesh = obj as THREE.SkinnedMesh
+      if (!mesh.isSkinnedMesh || !mesh.skeleton) return
+      const name = skeletonNameByRef.current.get(mesh.skeleton)
+      if (name === undefined) return
+      if (selectedSkeleton !== '' && name !== selectedSkeleton) return
+      mesh.skeleton.bones.forEach((bone: THREE.Bone) => {
+        bone.visible = skeletonVisible
+      })
     })
   }, [scene, selectedSkeleton, skeletonVisible])
 
-  // Control skeleton helper
+  // Control skeleton helper: สร้างจาก root bone เพื่อให้ Three.js วาดเส้น skeleton ได้ (SkinnedMesh ไม่มี Bone เป็น children)
   useEffect(() => {
-    if (!scene || !groupRef.current) return
+    if (!scene) return
 
     if (showSkeletonHelper) {
+      let created = false
       traverseScene(scene, (obj) => {
-        if ((obj as any).skeleton && (selectedSkeleton === '' || obj.name === selectedSkeleton)) {
-          if (!skeletonHelperRef.current) {
-            const helper = new THREE.SkeletonHelper(obj)
-            skeletonHelperRef.current = helper
-            groupRef.current?.add(helper)
-          }
+        if (created) return
+        const mesh = obj as THREE.SkinnedMesh
+        if (!mesh.isSkinnedMesh || !mesh.skeleton?.bones?.length) return
+        const name = skeletonNameByRef.current.get(mesh.skeleton)
+        if (name === undefined) return
+        if (selectedSkeleton !== '' && name !== selectedSkeleton) return
+        if (skeletonHelperRef.current) {
+          skeletonHelperRef.current.dispose()
+          skeletonHelperRef.current = null
         }
+        const sk = mesh.skeleton
+        const rootBone = sk.bones.find((b: THREE.Bone) => !b.parent || !sk.bones.includes(b.parent as THREE.Bone)) ?? sk.bones[0]
+        mesh.updateMatrixWorld(true)
+        rootBone.updateMatrixWorld(true)
+        const helper = new THREE.SkeletonHelper(rootBone as THREE.Object3D)
+        ;(helper as any).root = mesh
+        const mat = helper.material as THREE.LineBasicMaterial
+        if (mat) {
+          mat.depthTest = false
+          mat.depthWrite = false
+          mat.color.set(0x00ff00)
+        }
+        skeletonHelperRef.current = helper
+        setSkeletonHelperObject(helper)
+        created = true
       })
+      if (!created) setSkeletonHelperObject(null)
     } else {
-      if (skeletonHelperRef.current && groupRef.current) {
-        groupRef.current.remove(skeletonHelperRef.current)
+      if (skeletonHelperRef.current) {
         skeletonHelperRef.current.dispose()
         skeletonHelperRef.current = null
       }
+      setSkeletonHelperObject(null)
     }
 
     return () => {
-      if (skeletonHelperRef.current && groupRef.current) {
-        groupRef.current.remove(skeletonHelperRef.current)
+      if (skeletonHelperRef.current) {
         skeletonHelperRef.current.dispose()
         skeletonHelperRef.current = null
       }
+      setSkeletonHelperObject(null)
     }
   }, [scene, selectedSkeleton, showSkeletonHelper])
 
@@ -725,6 +750,14 @@ gl_FragColor.rgb = mix(gl_FragColor.rgb, _darkGray, 0.72);
         }
       }
     }
+    // อัปเดต SkeletonHelper ให้ตามตำแหน่ง mesh ทุกเฟรม (ขยับตาม animation)
+    const helper = skeletonHelperRef.current
+    const root = helper && (helper as any).root
+    if (root?.isSkinnedMesh) {
+      const mesh = root as THREE.SkinnedMesh
+      mesh.updateMatrixWorld(true)
+      helper.matrix.copy(mesh.matrixWorld)
+    }
   })
 
   return (
@@ -735,6 +768,9 @@ gl_FragColor.rgb = mix(gl_FragColor.rgb, _darkGray, 0.72);
         rotation={[rotationX, rotationY, rotationZ]}
         scale={scale}
       />
+      {skeletonHelperObject != null && (
+        <primitive object={skeletonHelperObject} />
+      )}
     </group>
   )
 })
