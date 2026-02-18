@@ -821,6 +821,66 @@ function CameraControls({ cameraX, cameraY, cameraZ, fov }: CameraControlsProps)
   )
 }
 
+interface SmoothCameraAnimatorProps {
+  targetX: number | null | undefined
+  targetY: number | null | undefined
+  targetZ: number | null | undefined
+  targetFov: number | null | undefined
+  onComplete?: () => void
+}
+
+function SmoothCameraAnimator({ targetX, targetY, targetZ, targetFov, onComplete }: SmoothCameraAnimatorProps) {
+  const { camera } = useThree()
+  const isAnimating = useRef(false)
+  const target = useRef({ x: 0, y: 0, z: 0, fov: 50 })
+  const completeCalled = useRef(false)
+
+  useEffect(() => {
+    if (targetX == null && targetY == null && targetZ == null && targetFov == null) return
+    target.current = {
+      x: targetX ?? camera.position.x,
+      y: targetY ?? camera.position.y,
+      z: targetZ ?? camera.position.z,
+      fov: targetFov ?? (camera as THREE.PerspectiveCamera).fov,
+    }
+    isAnimating.current = true
+    completeCalled.current = false
+  }, [targetX, targetY, targetZ, targetFov, camera])
+
+  useFrame(() => {
+    if (!isAnimating.current) return
+
+    const speed = 0.04
+    const threshold = 0.01
+
+    camera.position.x += (target.current.x - camera.position.x) * speed
+    camera.position.y += (target.current.y - camera.position.y) * speed
+    camera.position.z += (target.current.z - camera.position.z) * speed
+
+    const perspCam = camera as THREE.PerspectiveCamera
+    perspCam.fov += (target.current.fov - perspCam.fov) * speed
+    perspCam.updateProjectionMatrix()
+
+    const dx = Math.abs(target.current.x - camera.position.x)
+    const dy = Math.abs(target.current.y - camera.position.y)
+    const dz = Math.abs(target.current.z - camera.position.z)
+    const df = Math.abs(target.current.fov - perspCam.fov)
+
+    if (dx < threshold && dy < threshold && dz < threshold && df < threshold) {
+      camera.position.set(target.current.x, target.current.y, target.current.z)
+      perspCam.fov = target.current.fov
+      perspCam.updateProjectionMatrix()
+      isAnimating.current = false
+      if (!completeCalled.current) {
+        completeCalled.current = true
+        onComplete?.()
+      }
+    }
+  })
+
+  return null
+}
+
 interface SceneBackgroundProps {
   backgroundColor: string
 }
@@ -858,6 +918,12 @@ interface Viewer3DProps {
   cameraY: number
   cameraZ: number
   fov: number
+  // Smooth camera transition target (set to trigger animation)
+  cameraTargetX?: number | null
+  cameraTargetY?: number | null
+  cameraTargetZ?: number | null
+  cameraTargetFov?: number | null
+  onCameraTransitionEnd?: () => void
   // Scene controls
   backgroundColor: string
   enableGrid: boolean
@@ -1151,6 +1217,11 @@ export default function Viewer3D({
   cameraY,
   cameraZ,
   fov,
+  cameraTargetX,
+  cameraTargetY,
+  cameraTargetZ,
+  cameraTargetFov,
+  onCameraTransitionEnd,
   backgroundColor,
   enableGrid,
   gridSize,
@@ -1219,6 +1290,13 @@ export default function Viewer3D({
         <SceneBackground backgroundColor={backgroundColor} />
         <Suspense fallback={null}>
           <CameraControls cameraX={cameraX} cameraY={cameraY} cameraZ={cameraZ} fov={fov} />
+          <SmoothCameraAnimator
+            targetX={cameraTargetX}
+            targetY={cameraTargetY}
+            targetZ={cameraTargetZ}
+            targetFov={cameraTargetFov}
+            onComplete={onCameraTransitionEnd}
+          />
           <Lighting
             ambientIntensity={ambientIntensity}
             directionalIntensity={directionalIntensity}

@@ -7,10 +7,10 @@ import TCPreview from './components/TCPreview'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
 import { Button } from './components/ui/button'
 import { Upload, Trash2 } from 'lucide-react'
-import type { NodeTransform, NoteAnnotation, TextAnnotation, PartListItem } from './types'
+import type { NodeTransform, NoteAnnotation, TextAnnotation, PartListItem, TocSection } from './types'
 
 // Re-export types สำหรับ components ที่ import จาก App
-export type { NodeTransform, NoteAnnotation, TextAnnotation, PartListItem }
+export type { NodeTransform, NoteAnnotation, TextAnnotation, PartListItem, TocSection }
 
 const defaultNodeTransform = (): NodeTransform => ({
   visible: true,
@@ -116,6 +116,58 @@ function App() {
   const [isAddingPart, setIsAddingPart] = useState(false)
   const [pendingPartNodeName, setPendingPartNodeName] = useState<string | null>(null)
   const [pendingPartLabel, setPendingPartLabel] = useState('')
+
+  // Table of Contents sections state
+  const [tocSections, setTocSections] = useState<TocSection[]>([])
+  const [activeTocSectionId, setActiveTocSectionId] = useState<string | null>(null)
+  const [cameraTargetX, setCameraTargetX] = useState<number | null>(null)
+  const [cameraTargetY, setCameraTargetY] = useState<number | null>(null)
+  const [cameraTargetZ, setCameraTargetZ] = useState<number | null>(null)
+  const [cameraTargetFov, setCameraTargetFov] = useState<number | null>(null)
+
+  const handleAddTocSection = () => {
+    setTocSections((prev) => [...prev, { id: `sec-${Date.now()}`, title: 'New Section' }])
+  }
+
+  const handleRemoveTocSection = (id: string) => {
+    setTocSections((prev) => prev.filter((s) => s.id !== id))
+    if (activeTocSectionId === id) setActiveTocSectionId(null)
+  }
+
+  const handleUpdateTocSection = (id: string, updates: Partial<TocSection>) => {
+    setTocSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)))
+  }
+
+  const handleTocSectionClick = (section: TocSection) => {
+    setActiveTocSectionId(section.id)
+    if (section.animationName) {
+      setSelectedAnimation(section.animationName)
+      setAnimationSpeed(section.animationSpeed ?? 1)
+      setAnimationEnabled(true)
+    }
+    const hasCamera =
+      section.cameraX !== undefined ||
+      section.cameraY !== undefined ||
+      section.cameraZ !== undefined ||
+      section.cameraFov !== undefined
+    if (hasCamera) {
+      setCameraTargetX(section.cameraX ?? null)
+      setCameraTargetY(section.cameraY ?? null)
+      setCameraTargetZ(section.cameraZ ?? null)
+      setCameraTargetFov(section.cameraFov ?? null)
+    }
+  }
+
+  const handleCameraTransitionEnd = () => {
+    if (cameraTargetX != null) setCameraX(cameraTargetX)
+    if (cameraTargetY != null) setCameraY(cameraTargetY)
+    if (cameraTargetZ != null) setCameraZ(cameraTargetZ)
+    if (cameraTargetFov != null) setFov(cameraTargetFov)
+    setCameraTargetX(null)
+    setCameraTargetY(null)
+    setCameraTargetZ(null)
+    setCameraTargetFov(null)
+  }
 
   const handleNodeNamesChange = (names: string[], initialTransforms?: Record<string, NodeTransform>) => {
     setNodeNames(names)
@@ -338,10 +390,25 @@ function App() {
       {/* 3D Viewer */}
       {selectedModel && (
         <>
-          <TCPreview />
+          <TCPreview
+            sections={tocSections}
+            activeSectionId={activeTocSectionId}
+            onSectionClick={handleTocSectionClick}
+          />
           <TableOfContentsDrawer
             isOpen={tocDrawerOpen}
             setIsOpen={setTocDrawerOpen}
+            sections={tocSections}
+            animationNames={animationNames}
+            onAddSection={handleAddTocSection}
+            onRemoveSection={handleRemoveTocSection}
+            onUpdateSection={handleUpdateTocSection}
+            onCameraPreview={(cam) => {
+              if (cam.x !== undefined) setCameraX(cam.x)
+              if (cam.y !== undefined) setCameraY(cam.y)
+              if (cam.z !== undefined) setCameraZ(cam.z)
+              if (cam.fov !== undefined) setFov(cam.fov)
+            }}
           />
           <RightDrawer 
             isOpen={rightDrawerOpen} 
@@ -573,6 +640,11 @@ function App() {
               cameraY={cameraY}
               cameraZ={cameraZ}
               fov={fov}
+              cameraTargetX={cameraTargetX}
+              cameraTargetY={cameraTargetY}
+              cameraTargetZ={cameraTargetZ}
+              cameraTargetFov={cameraTargetFov}
+              onCameraTransitionEnd={handleCameraTransitionEnd}
               backgroundColor={backgroundColor}
               enableGrid={enableGrid}
               gridSize={gridSize}

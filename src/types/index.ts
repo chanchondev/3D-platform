@@ -39,6 +39,18 @@ export interface TextAnnotation {
   createdAt: Date
 }
 
+/** Section สำหรับ Table of Contents */
+export interface TocSection {
+  id: string
+  title: string
+  animationName?: string
+  animationSpeed?: number
+  cameraX?: number
+  cameraY?: number
+  cameraZ?: number
+  cameraFov?: number
+}
+
 /** รายการ Part Names: เลือก node จากโมเดล แล้วตั้งชื่อ (เช่น Head, Leg) */
 export interface PartListItem {
   id: string
