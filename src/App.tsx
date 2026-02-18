@@ -101,6 +101,10 @@ function App() {
   // Note annotations state
   const [notes, setNotes] = useState<NoteAnnotation[]>([])
   const [isPlacingNote, setIsPlacingNote] = useState(false)
+  /** เมื่อกด "ไปที่หมุด" ในรายการ Note ให้กล้องเล็งไปที่ตำแหน่งนี้ */
+  const [focusNotePosition, setFocusNotePosition] = useState<{ x: number; y: number; z: number } | null>(null)
+  /** โหมดย้ายหมุด: id ของ Note ที่กำลังเปิดโหมดลาก (กดปุ่มย้าย → ลากหมุด → ปล่อย = off) */
+  const [movingNoteId, setMovingNoteId] = useState<string | null>(null)
 
   // Text annotations state
   const [textAnnotations, setTextAnnotations] = useState<TextAnnotation[]>([])
@@ -266,7 +270,7 @@ function App() {
       positionY: position.y,
       positionZ: position.z,
       text: '',
-      offsetY: 0.5, // default offset 0.5 units จากพื้น
+      offsetY: 0, // 0 = ปักติดผิวโมเดลตรงจุดที่คลิก
       createdAt: new Date(),
     }
     setNotes([...notes, newNote])
@@ -292,7 +296,7 @@ function App() {
       text: 'New Text',
       fontSize: 16,
       color: '#ffffff',
-      offsetY: 0.5, // default offset 0.5 units จากพื้น
+      offsetY: 0, // 0 = ปักติดผิวโมเดลตรงจุดที่คลิก
       createdAt: new Date(),
     }
     setTextAnnotations([...textAnnotations, newTextAnnotation])
@@ -411,6 +415,8 @@ function App() {
             onTogglePlaceNote={() => setIsPlacingNote(!isPlacingNote)}
             onNoteUpdate={(id, updates) => handleNoteUpdate(id, updates)}
             onNoteDelete={handleNoteDelete}
+            movingNoteId={movingNoteId}
+            onStartMoveNote={(id) => setMovingNoteId(id || null)}
             textAnnotations={textAnnotations}
             isPlacingText={isPlacingText}
             onTogglePlaceText={() => setIsPlacingText(!isPlacingText)}
@@ -673,6 +679,10 @@ function App() {
               onNoteUpdate={handleNoteUpdate}
               onNoteDelete={handleNoteDelete}
               onNoteEdit={() => setRightDrawerOpen(true)}
+              focusNotePosition={focusNotePosition}
+              onFocusNoteDone={() => setFocusNotePosition(null)}
+              movingNoteId={movingNoteId}
+              onEndMoveNote={() => setMovingNoteId(null)}
               textAnnotations={textAnnotations}
               isPlacingText={isPlacingText}
               onTextPlace={handleTextPlace}

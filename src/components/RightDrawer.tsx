@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { ChevronLeft, ChevronRight, MapPin, Plus, Trash2, X, Type } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, Move, Plus, Trash2, X, Type } from 'lucide-react'
 import type { NoteAnnotation, TextAnnotation, PartListItem } from '../types'
 
 interface RightDrawerProps {
@@ -12,6 +12,9 @@ interface RightDrawerProps {
   onTogglePlaceNote?: () => void
   onNoteUpdate?: (id: string, updates: Partial<NoteAnnotation>) => void
   onNoteDelete?: (id: string) => void
+  /** โหมดย้ายหมุด: id ของ Note ที่เปิดโหมดอยู่ (กดปุ่มย้าย = on, ปล่อยหลังลาก = off) */
+  movingNoteId?: string | null
+  onStartMoveNote?: (noteId: string) => void
   textAnnotations?: TextAnnotation[]
   isPlacingText?: boolean
   onTogglePlaceText?: () => void
@@ -37,6 +40,8 @@ export default function RightDrawer({
   onTogglePlaceNote = () => {},
   onNoteUpdate = () => {},
   onNoteDelete = () => {},
+  movingNoteId = null,
+  onStartMoveNote = () => {},
   textAnnotations = [],
   isPlacingText = false,
   onTogglePlaceText = () => {},
@@ -171,21 +176,32 @@ export default function RightDrawer({
                 notes.map((note) => (
                   <Card key={note.id} className="p-3">
                     <div className="space-y-2">
-                      <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4 text-primary" />
                           <span className="text-xs text-muted-foreground">
                             {new Date(note.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => onNoteDelete(note.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            variant={movingNoteId === note.id ? 'secondary' : 'ghost'}
+                            size="icon"
+                            className="h-6 w-6"
+                            title={movingNoteId === note.id ? 'โหมดย้ายหมุดเปิด — ลากหมุดในวิว 3D แล้วปล่อยเพื่อย้าย' : 'ย้ายหมุด (เปิดโหมดแล้วลากหมุดไปตำแหน่งที่ต้องการ)'}
+                            onClick={() => onStartMoveNote(movingNoteId === note.id ? '' : note.id)}
+                          >
+                            <Move className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => onNoteDelete(note.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                       
                       {editingNoteId === note.id ? (
