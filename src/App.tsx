@@ -68,6 +68,14 @@ function App() {
   const [gridSize, setGridSize] = useState(10)
   const [gridDivisions, setGridDivisions] = useState(10)
 
+  // Environment controls state
+  const [envPreset, setEnvPreset] = useState<string>('sunset')
+  const [envHdrUrl, setEnvHdrUrl] = useState<string | null>(null)
+  const [envBackground, setEnvBackground] = useState(false)
+  const [envBackgroundBlurriness, setEnvBackgroundBlurriness] = useState(0)
+  const [envBackgroundIntensity, setEnvBackgroundIntensity] = useState(1)
+  const [envIntensity, setEnvIntensity] = useState(1)
+
   // Skeletons controls state
   const [skeletonNames, setSkeletonNames] = useState<string[]>([])
   const [selectedSkeleton, setSelectedSkeleton] = useState('')
@@ -234,6 +242,14 @@ function App() {
       setIsAddingPart(false)
       setPendingPartNodeName(null)
       setPendingPartLabel('')
+      // Reset environment
+      setEnvPreset('sunset')
+      if (envHdrUrl?.startsWith('blob:')) URL.revokeObjectURL(envHdrUrl)
+      setEnvHdrUrl(null)
+      setEnvBackground(false)
+      setEnvBackgroundBlurriness(0)
+      setEnvBackgroundIntensity(1)
+      setEnvIntensity(1)
     }
   }
 
@@ -510,6 +526,18 @@ function App() {
               setEnableGrid,
               setGridSize,
               setGridDivisions,
+              envPreset,
+              envHdrUrl,
+              envBackground,
+              envBackgroundBlurriness,
+              envBackgroundIntensity,
+              envIntensity,
+              setEnvPreset,
+              setEnvHdrUrl,
+              setEnvBackground,
+              setEnvBackgroundBlurriness,
+              setEnvBackgroundIntensity,
+              setEnvIntensity,
             }}
             skeletonControls={{
               skeletonNames,
@@ -657,6 +685,12 @@ function App() {
               enableGrid={enableGrid}
               gridSize={gridSize}
               gridDivisions={gridDivisions}
+              envPreset={envPreset}
+              envHdrUrl={envHdrUrl}
+              envBackground={envBackground}
+              envBackgroundBlurriness={envBackgroundBlurriness}
+              envBackgroundIntensity={envBackgroundIntensity}
+              envIntensity={envIntensity}
               skeletonNames={skeletonNames}
               selectedSkeleton={selectedSkeleton}
               skeletonVisible={skeletonVisible}

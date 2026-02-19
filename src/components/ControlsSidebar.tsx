@@ -205,6 +205,18 @@ interface ControlsSidebarProps {
     setEnableGrid: (v: boolean) => void
     setGridSize: (v: number) => void
     setGridDivisions: (v: number) => void
+    envPreset: string
+    envHdrUrl: string | null
+    envBackground: boolean
+    envBackgroundBlurriness: number
+    envBackgroundIntensity: number
+    envIntensity: number
+    setEnvPreset: (v: string) => void
+    setEnvHdrUrl: (v: string | null) => void
+    setEnvBackground: (v: boolean) => void
+    setEnvBackgroundBlurriness: (v: number) => void
+    setEnvBackgroundIntensity: (v: number) => void
+    setEnvIntensity: (v: number) => void
   }
   skeletonControls: {
     skeletonNames: string[]
@@ -837,6 +849,150 @@ export default function ControlsSidebar({
                     className="w-full"
                   />
                   <span className="text-xs">{sceneControls.gridDivisions}</span>
+                </div>
+
+                {/* Environment Controls */}
+                <div className="border-t border-border pt-3 mt-3">
+                  <label className="text-xs font-medium text-foreground block mb-2">Environment</label>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Preset</label>
+                      <select
+                        value={sceneControls.envHdrUrl ? '__custom__' : sceneControls.envPreset}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          if (val === '__custom__') return
+                          if (sceneControls.envHdrUrl?.startsWith('blob:')) {
+                            URL.revokeObjectURL(sceneControls.envHdrUrl)
+                          }
+                          sceneControls.setEnvHdrUrl(null)
+                          sceneControls.setEnvPreset(val)
+                        }}
+                        className="w-full p-2 border rounded text-sm"
+                      >
+                        <option value="sunset">Sunset</option>
+                        <option value="studio">Studio</option>
+                        <option value="city">City</option>
+                        <option value="apartment">Apartment</option>
+                        <option value="dawn">Dawn</option>
+                        <option value="forest">Forest</option>
+                        <option value="lobby">Lobby</option>
+                        <option value="night">Night</option>
+                        <option value="park">Park</option>
+                        <option value="warehouse">Warehouse</option>
+                        {sceneControls.envHdrUrl && (
+                          <option value="__custom__">Custom HDR</option>
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Custom HDR File</label>
+                      {sceneControls.envHdrUrl ? (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 p-2 bg-muted/50 rounded text-xs">
+                            <span className="flex-1 truncate">Custom HDR loaded</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="w-full text-xs"
+                            onClick={() => {
+                              if (sceneControls.envHdrUrl?.startsWith('blob:')) {
+                                URL.revokeObjectURL(sceneControls.envHdrUrl)
+                              }
+                              sceneControls.setEnvHdrUrl(null)
+                              sceneControls.setEnvPreset('sunset')
+                            }}
+                          >
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Remove HDR
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <input
+                            type="file"
+                            accept=".hdr"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                const url = URL.createObjectURL(file)
+                                sceneControls.setEnvHdrUrl(url)
+                              }
+                              e.target.value = ''
+                            }}
+                            className="hidden"
+                            id="hdr-upload"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full text-xs"
+                            onClick={() => document.getElementById('hdr-upload')?.click()}
+                          >
+                            <Upload className="mr-1 h-3 w-3" />
+                            Upload HDR
+                          </Button>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={sceneControls.envBackground}
+                        onChange={(e) => sceneControls.setEnvBackground(e.target.checked)}
+                      />
+                      <label className="text-xs">Show as Background</label>
+                    </div>
+
+                    {sceneControls.envBackground && (
+                      <>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Background Blurriness</label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={sceneControls.envBackgroundBlurriness}
+                            onChange={(e) => sceneControls.setEnvBackgroundBlurriness(parseFloat(e.target.value))}
+                            className="w-full"
+                          />
+                          <span className="text-xs">{sceneControls.envBackgroundBlurriness.toFixed(2)}</span>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Background Intensity</label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="3"
+                            step="0.05"
+                            value={sceneControls.envBackgroundIntensity}
+                            onChange={(e) => sceneControls.setEnvBackgroundIntensity(parseFloat(e.target.value))}
+                            className="w-full"
+                          />
+                          <span className="text-xs">{sceneControls.envBackgroundIntensity.toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
+
+                    <div>
+                      <label className="text-xs text-muted-foreground">Environment Intensity</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="5"
+                        step="0.05"
+                        value={sceneControls.envIntensity}
+                        onChange={(e) => sceneControls.setEnvIntensity(parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                      <span className="text-xs">{sceneControls.envIntensity.toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             )}

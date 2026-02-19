@@ -2,6 +2,7 @@ import { Suspense, useRef, useEffect, useState, forwardRef, useImperativeHandle 
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera, Environment, Grid, useGLTF, useAnimations, Html } from '@react-three/drei'
 import * as THREE from 'three'
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import type { NodeTransform, NoteAnnotation, TextAnnotation } from '../types'
 import NoteMarker3D from './annotations/NoteMarker3D'
 import NoteOverlay from './annotations/NoteOverlay'
@@ -892,6 +893,74 @@ function SceneBackground({ backgroundColor }: SceneBackgroundProps) {
   return <color attach="background" args={[backgroundColor]} />
 }
 
+/**
+ * Loads a custom HDR from a blob URL using RGBELoader
+ * (drei's <Environment files={...}> can't detect .hdr extension from blob URLs)
+ */
+function CustomHdrEnvironment({
+  hdrUrl,
+  background,
+  backgroundBlurriness,
+  backgroundIntensity,
+  environmentIntensity,
+}: {
+  hdrUrl: string
+  background: boolean
+  backgroundBlurriness: number
+  backgroundIntensity: number
+  environmentIntensity: number
+}) {
+  const { gl, scene } = useThree()
+  const [envMap, setEnvMap] = useState<THREE.Texture | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const pmremGenerator = new THREE.PMREMGenerator(gl)
+    pmremGenerator.compileEquirectangularShader()
+    const loader = new RGBELoader()
+
+    loader.load(hdrUrl, (hdrTexture) => {
+      if (cancelled) {
+        hdrTexture.dispose()
+        pmremGenerator.dispose()
+        return
+      }
+      const processed = pmremGenerator.fromEquirectangular(hdrTexture).texture
+      setEnvMap((prev) => {
+        prev?.dispose()
+        return processed
+      })
+      hdrTexture.dispose()
+      pmremGenerator.dispose()
+    })
+
+    return () => {
+      cancelled = true
+      setEnvMap((prev) => {
+        prev?.dispose()
+        return null
+      })
+      scene.environment = null
+      scene.background = null
+    }
+  }, [hdrUrl, gl, scene])
+
+  useEffect(() => {
+    if (!envMap) return
+    scene.environment = envMap
+    scene.environmentIntensity = environmentIntensity
+    if (background) {
+      scene.background = envMap
+      scene.backgroundBlurriness = backgroundBlurriness
+      scene.backgroundIntensity = backgroundIntensity
+    } else {
+      scene.background = null
+    }
+  }, [envMap, background, backgroundBlurriness, backgroundIntensity, environmentIntensity, scene])
+
+  return null
+}
+
 interface Viewer3DProps {
   modelUrl?: string
   // Model controls
@@ -932,6 +1001,13 @@ interface Viewer3DProps {
   enableGrid: boolean
   gridSize: number
   gridDivisions: number
+  // Environment controls
+  envPreset: string
+  envHdrUrl: string | null
+  envBackground: boolean
+  envBackgroundBlurriness: number
+  envBackgroundIntensity: number
+  envIntensity: number
   // Skeletons controls
   skeletonNames: string[]
   selectedSkeleton: string
@@ -1230,6 +1306,12 @@ export default function Viewer3D({
   enableGrid,
   gridSize,
   gridDivisions,
+  envPreset,
+  envHdrUrl,
+  envBackground,
+  envBackgroundBlurriness,
+  envBackgroundIntensity,
+  envIntensity,
   skeletonNames,
   selectedSkeleton,
   skeletonVisible,
@@ -1407,7 +1489,23 @@ export default function Viewer3D({
             controlsRef={controlsRef}
             onDone={onFocusNoteDone}
           />
-          <Environment preset="sunset" />
+          {envHdrUrl ? (
+            <CustomHdrEnvironment
+              hdrUrl={envHdrUrl}
+              background={envBackground}
+              backgroundBlurriness={envBackgroundBlurriness}
+              backgroundIntensity={envBackgroundIntensity}
+              environmentIntensity={envIntensity}
+            />
+          ) : (
+            <Environment
+              preset={envPreset as any}
+              background={envBackground}
+              backgroundBlurriness={envBackgroundBlurriness}
+              backgroundIntensity={envBackgroundIntensity}
+              environmentIntensity={envIntensity}
+            />
+          )}
         </Suspense>
       </Canvas>
     </div>
