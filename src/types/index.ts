@@ -13,13 +13,27 @@ export interface NodeTransform {
   scale: number
 }
 
+/** หนึ่งหน้าใน Note: เนื้อหาเป็น HTML จาก rich editor (TinyMCE) */
+export interface NotePage {
+  content: string
+}
+
 export interface NoteAnnotation {
   id: string
+  /** หัวข้อการ์ด (แก้ไขได้, ไม่ใส่ก็ได้) */
+  title?: string
   positionX: number
   positionY: number
   positionZ: number
-  text: string
+  /** @deprecated ใช้ pages แทน; เก็บไว้เพื่อ backward compatibility */
+  text?: string
+  /** เนื้อหาแบบหลายหน้า แต่ละหน้ามี HTML (รูป, ลิงก์, วิดีโอ ได้) */
+  pages?: NotePage[]
   offsetY: number
+  /** ความกว้างการ์ดบนจอ (px) — ปรับขนาดได้ */
+  cardWidth?: number
+  /** ความสูงการ์ดบนจอ (px) — ปรับขนาดได้ */
+  cardHeight?: number
   createdAt: Date
   /** ถ้ามีค่า หมุดจะผูกกับกระดูกนี้และเคลื่อนตาม animation */
   attachedBoneName?: string

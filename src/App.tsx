@@ -7,7 +7,9 @@ import TCPreview from './components/TCPreview'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
 import { Button } from './components/ui/button'
 import { Upload, Trash2 } from 'lucide-react'
-import type { NodeTransform, NoteAnnotation, TextAnnotation, PartListItem, TocSection } from './types'
+import type { NodeTransform, NoteAnnotation, NotePage, TextAnnotation, PartListItem, TocSection } from './types'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from './components/ui/dialog'
+import NoteRichEditor from './components/annotations/NoteRichEditor'
 
 // Re-export types สำหรับ components ที่ import จาก App
 export type { NodeTransform, NoteAnnotation, TextAnnotation, PartListItem, TocSection }
@@ -113,6 +115,9 @@ function App() {
   const [focusNotePosition, setFocusNotePosition] = useState<{ x: number; y: number; z: number } | null>(null)
   /** โหมดย้ายหมุด: id ของ Note ที่กำลังเปิดโหมดลาก (กดปุ่มย้าย → ลากหมุด → ปล่อย = off) */
   const [movingNoteId, setMovingNoteId] = useState<string | null>(null)
+  /** กดปากกาที่การ์ดโน้ต → เปิด modal แก้ไขโน้ตนี้ */
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editNoteDraft, setEditNoteDraft] = useState<{ title: string; pages: NotePage[] } | null>(null)
 
   // Text annotations state
   const [textAnnotations, setTextAnnotations] = useState<TextAnnotation[]>([])
@@ -292,7 +297,10 @@ function App() {
       positionY: payload.y,
       positionZ: payload.z,
       text: '',
+      pages: [{ content: '' }],
       offsetY: 0,
+      cardWidth: 300,
+      cardHeight: 240,
       createdAt: new Date(),
       ...(payload.attachedBoneName && payload.attachedBoneOffset && {
         attachedBoneName: payload.attachedBoneName,
@@ -309,6 +317,32 @@ function App() {
 
   const handleNoteDelete = (id: string) => {
     setNotes(notes.filter(note => note.id !== id))
+  }
+
+  const handleOpenNoteEdit = (id: string) => {
+    const note = notes.find((n) => n.id === id)
+    if (note) {
+      setEditingNoteId(id)
+      setEditNoteDraft({
+        title: note.title ?? '',
+        pages: note.pages?.length ? note.pages : [{ content: note.text ?? '' }],
+      })
+    }
+  }
+
+  const handleSaveNoteEdit = () => {
+    if (!editingNoteId || !editNoteDraft) return
+    handleNoteUpdate(editingNoteId, {
+      title: editNoteDraft.title.trim() || undefined,
+      pages: editNoteDraft.pages,
+    })
+    setEditingNoteId(null)
+    setEditNoteDraft(null)
+  }
+
+  const handleCancelNoteEdit = () => {
+    setEditingNoteId(null)
+    setEditNoteDraft(null)
   }
 
   const handleTextPlace = (position: { x: number; y: number; z: number }) => {
@@ -723,7 +757,7 @@ function App() {
               onNotePlace={handleNotePlace}
               onNoteUpdate={handleNoteUpdate}
               onNoteDelete={handleNoteDelete}
-              onNoteEdit={() => setRightDrawerOpen(true)}
+              onNoteEdit={handleOpenNoteEdit}
               focusNotePosition={focusNotePosition}
               onFocusNoteDone={() => setFocusNotePosition(null)}
               movingNoteId={movingNoteId}
@@ -733,6 +767,15 @@ function App() {
               onTextPlace={handleTextPlace}
             />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+              {/* <Button
+                variant={showNoteAnnotations ? 'default' : 'outline'}
+                size="icon"
+                className="shrink-0"
+                onClick={() => setShowNoteAnnotations((v) => !v)}
+                title={showNoteAnnotations ? 'ซ่อน Note Annotations' : 'แสดง Note Annotations'}
+              >
+                <MapPin className="h-4 w-4" />
+              </Button> */}
               <Button
                 variant="outline"
                 onClick={() => document.getElementById('file-upload')?.click()}
@@ -752,6 +795,59 @@ function App() {
                 Clear
               </Button>
             </div>
+
+            {/* Modal แก้ไขโน้ต — เปิดเมื่อกดปากกาที่การ์ดโน้ต */}
+            <Dialog
+              open={editingNoteId !== null}
+              onOpenChange={(open) => !open && handleCancelNoteEdit()}
+              closeOnOverlayClick={false}
+            >
+              <DialogContent
+                className="max-w-2xl w-full mx-auto"
+                onClose={handleCancelNoteEdit}
+                showCloseButton
+              >
+                <DialogHeader>
+                  <DialogTitle>แก้ไขโน้ต</DialogTitle>
+                </DialogHeader>
+                <DialogBody className="space-y-4">
+                  {editNoteDraft && (
+                    <>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">
+                          หัวข้อ
+                        </label>
+                        <input
+                          type="text"
+                          value={editNoteDraft.title}
+                          onChange={(e) =>
+                            setEditNoteDraft((prev) => (prev ? { ...prev, title: e.target.value } : null))
+                          }
+                          placeholder="เช่น หัวข้อโน้ต หรือเว้นว่างได้"
+                          className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <NoteRichEditor
+                        key={editingNoteId ?? 'edit'}
+                        pages={editNoteDraft.pages}
+                        onChange={(pages) =>
+                          setEditNoteDraft((prev) => (prev ? { ...prev, pages } : null))
+                        }
+                        height={320}
+                      />
+                    </>
+                  )}
+                </DialogBody>
+                <DialogFooter>
+                  <Button variant="outline" onClick={handleCancelNoteEdit}>
+                    ยกเลิก
+                  </Button>
+                  <Button onClick={handleSaveNoteEdit} disabled={!editNoteDraft}>
+                    บันทึก
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </>
       )}

@@ -61,7 +61,7 @@ export default function TCPreview({ sections, activeSectionId, onSectionClick }:
   return (
     <div
       ref={containerRef}
-      className="fixed z-[41]"
+      className="fixed z-[60]"
       style={{ left: position.x, top: position.y }}
       data-drawer="toc-card"
     >

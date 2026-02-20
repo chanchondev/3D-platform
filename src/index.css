@@ -57,3 +57,66 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Note card: เอา background สีขาวออกเฉพาะเมื่อมีวิดีโอ (iframe) — รูป/ข้อความไม่กระทบ */
+[data-annotation-id] .prose:has(iframe) :where(p, div):has(iframe) {
+  position: relative;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  width: 100%;
+  margin-bottom: 0.5em;
+}
+[data-annotation-id] .prose:has(iframe) :where(p, div):has(iframe) iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent !important;
+}
+
+[data-annotation-id] .prose:has(iframe) {
+  contain: layout paint;
+  transform: translateZ(0); 
+}
+
+[data-annotation-id] .note-card-body {
+  contain: paint;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+[data-annotation-id] .note-card-body::-webkit-scrollbar {
+  width: 6px;
+}
+[data-annotation-id] .note-card-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-annotation-id] .note-card-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+}
+[data-annotation-id] .note-card-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* Modal รายละเอียดเนื้อหา: ให้วิดีโอ (iframe) อยู่ภายในกรอบ ไม่ล้น */
+.note-detail-modal .note-detail-modal-prose :where(p, div):has(iframe) {
+  position: relative;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 0.5em;
+}
+.note-detail-modal .note-detail-modal-prose :where(p, div):has(iframe) iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  background: transparent !important;
+}
+.note-detail-modal .note-detail-modal-prose {
+  overflow: hidden;
+}

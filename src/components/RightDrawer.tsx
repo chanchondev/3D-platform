@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from './ui/dialog'
 import { ChevronLeft, ChevronRight, MapPin, Move, Plus, Trash2, X, Type } from 'lucide-react'
-import type { NoteAnnotation, TextAnnotation, PartListItem } from '../types'
+import type { NoteAnnotation, NotePage, TextAnnotation, PartListItem } from '../types'
+import NoteRichEditor from './annotations/NoteRichEditor'
 
 interface RightDrawerProps {
   isOpen?: boolean
@@ -67,14 +69,21 @@ export default function RightDrawer({
 
   const handleStartEdit = (note: NoteAnnotation) => {
     setEditingNoteId(note.id)
+    const pages: NotePage[] =
+      note.pages?.length ? note.pages : [{ content: note.text ?? '' }]
     setEditNote({
+      title: note.title,
       text: note.text,
+      pages,
       offsetY: note.offsetY,
     })
   }
 
   const handleSaveEdit = (id: string) => {
-    onNoteUpdate(id, editNote)
+    onNoteUpdate(id, {
+      ...editNote,
+      title: editNote.title?.trim() || undefined,
+    })
     setEditingNoteId(null)
     setEditNote({})
   }
@@ -110,7 +119,7 @@ export default function RightDrawer({
       {/* Toggle Button */}
       <Button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-50 rounded-r-none rounded-l-lg"
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-[70] rounded-r-none rounded-l-lg"
         variant="secondary"
         size="icon"
         data-drawer-toggle="right"
@@ -121,7 +130,7 @@ export default function RightDrawer({
       {/* Drawer */}
       <div
         data-drawer="right"
-        className={`fixed right-0 top-0 h-full bg-card border-l border-border shadow-lg transition-transform duration-300 z-40 overflow-y-auto ${
+        className={`fixed right-0 top-0 h-full bg-card border-l border-border shadow-lg transition-transform duration-300 z-[60] overflow-y-auto ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         style={{ width: '370px', maxHeight: '100vh' }}
@@ -204,82 +213,41 @@ export default function RightDrawer({
                         </div>
                       </div>
                       
-                      {editingNoteId === note.id ? (
-                        <div className="space-y-2">
-                          <textarea
-                            value={editNote.text || ''}
-                            onChange={(e) => setEditNote({ ...editNote, text: e.target.value })}
-                            className="w-full p-2 text-sm border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                            rows={3}
-                            placeholder="Enter note text..."
-                            autoFocus
-                          />
-                          <div>
-                            <label className="text-xs text-muted-foreground mb-1 block">Height from Ground (offsetY)</label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="range"
-                                min="0"
-                                max="5"
-                                step="0.1"
-                                value={editNote.offsetY !== undefined ? editNote.offsetY : 0.5}
-                                onChange={(e) => setEditNote({ ...editNote, offsetY: parseFloat(e.target.value) })}
-                                className="flex-1"
-                              />
-                              <input
-                                type="number"
-                                min="0"
-                                max="10"
-                                step="0.1"
-                                value={editNote.offsetY !== undefined ? editNote.offsetY : 0.5}
-                                onChange={(e) => setEditNote({ ...editNote, offsetY: parseFloat(e.target.value) || 0 })}
-                                className="w-20 p-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleSaveEdit(note.id)}
-                              className="flex-1"
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={handleCancelEdit}
-                              className="flex-1"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          {note.text ? (
-                            <p 
-                              className="text-sm cursor-pointer hover:bg-accent p-2 rounded-md -m-2"
-                              onClick={() => handleStartEdit(note)}
-                            >
-                              {note.text}
-                            </p>
-                          ) : (
-                            <button
-                              onClick={() => handleStartEdit(note)}
-                              className="text-sm text-muted-foreground hover:text-foreground w-full text-left p-2 rounded-md hover:bg-accent -m-2"
-                            >
-                              Click to add text...
-                            </button>
-                          )}
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Position: ({note.positionX.toFixed(2)}, {note.positionY.toFixed(2)}, {note.positionZ.toFixed(2)})
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Height: {note.offsetY.toFixed(2)} units
-                          </div>
-                        </div>
-                      )}
+                      <div>
+                        {(() => {
+                          const pages = note.pages?.length ? note.pages : [{ content: note.text ?? '' }]
+                          const hasContent = pages.some((p) => p.content.trim().length > 0)
+                          const preview = pages[0]?.content?.replace(/<[^>]+>/g, ' ').trim().slice(0, 80)
+                          return (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(note)}
+                                className="text-sm cursor-pointer hover:bg-accent p-2 rounded-md -m-2 w-full text-left"
+                              >
+                                     {note.title != null && note.title.trim() !== '' && (
+                                <div className="font-medium text-sm text-foreground">
+                                  {note.title}
+                                </div>
+                              )}
+                                {hasContent ? (
+                                  <span className="line-clamp-2">{preview || '(ไม่มีข้อความ)'}{preview && preview.length >= 80 ? '…' : ''}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">คลิกเพื่อเพิ่มข้อความ รูป ลิงก์ หรือวิดีโอ...</span>
+                                )}
+                                {pages.length > 1 && (
+                                  <span className="text-xs text-muted-foreground mt-1 block">
+                                    {pages.length} หน้า
+                                  </span>
+                                )}
+                              </button>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Position: ({note.positionX.toFixed(2)}, {note.positionY.toFixed(2)}, {note.positionZ.toFixed(2)})
+                              </div>
+                            </>
+                          )
+                        })()}
+                      </div>
                     </div>
                   </Card>
                 ))
@@ -523,6 +491,52 @@ export default function RightDrawer({
           </div>
         </div>
       </div>
+
+      {/* Modal แก้ไขโน้ต — ข้อความ รูป ลิงก์ วิดีโอ หลายหน้า */}
+      <Dialog
+        open={editingNoteId !== null}
+        onOpenChange={(open) => !open && handleCancelEdit()}
+        closeOnOverlayClick={false}
+      >
+        <DialogContent
+          className="w-full max-w-2xl"
+          onClose={handleCancelEdit}
+          showCloseButton={true}
+        >
+          <DialogHeader>
+            <DialogTitle>แก้ไขโน้ต</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">หัวข้อ</label>
+              <input
+                type="text"
+                value={editNote.title ?? ''}
+                onChange={(e) => setEditNote({ ...editNote, title: e.target.value })}
+                placeholder="เช่น หัวข้อโน้ต หรือเว้นว่างได้"
+                className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <NoteRichEditor
+              key={editingNoteId ?? 'modal-editor'}
+              pages={editNote.pages ?? [{ content: editNote.text ?? '' }]}
+              onChange={(pages) => setEditNote({ ...editNote, pages })}
+              height={320}
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelEdit}>
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={() => editingNoteId && handleSaveEdit(editingNoteId)}
+              disabled={!editingNoteId}
+            >
+              บันทึก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tinymce/tinymce-react": "^5.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "tinymce": "^7.0.0",
     "@react-three/fiber": "^8.17.10",
     "@react-three/drei": "^9.114.3",
     "leva": "^0.9.35",

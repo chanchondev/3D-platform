@@ -13,7 +13,7 @@ const NOTE_COLOR = '#ef4444'
 
 export default function NoteOverlay({
   notes,
-  onNoteUpdate: _onNoteUpdate,
+  onNoteUpdate,
   onNoteDelete,
   onNoteEdit,
 }: NoteOverlayProps) {
@@ -43,24 +43,30 @@ export default function NoteOverlay({
         screenPos: { x: number; y: number }
       }>
       const { id, screenPos } = customEvent.detail
+      const canvas = canvasOffsetRef.current
       setScreenPositions((prev) => ({ ...prev, [id]: screenPos }))
-      if (!cardPositions[id]) {
-        setCardPositions((prev) => ({
+      setCardPositions((prev) => {
+        if (prev[id]) return prev
+        return {
           ...prev,
           [id]: {
-            x: screenPos.x + canvasOffsetRef.current.x + 100,
-            y: screenPos.y + canvasOffsetRef.current.y - 50,
+            x: screenPos.x + canvas.x + 100,
+            y: screenPos.y + canvas.y - 50,
           },
-        }))
-      }
+        }
+      })
     }
     window.addEventListener('noteScreenPosition', handleScreenPosition)
     return () =>
       window.removeEventListener('noteScreenPosition', handleScreenPosition)
-  }, [cardPositions])
+  }, [])
 
   const handleCardPositionChange = (id: string, pos: { x: number; y: number }) => {
     setCardPositions((prev) => ({ ...prev, [id]: pos }))
+  }
+
+  const handleCardSizeChange = (id: string, size: { width: number; height: number }) => {
+    onNoteUpdate(id, { cardWidth: size.width, cardHeight: size.height })
   }
 
   return (
@@ -72,10 +78,15 @@ export default function NoteOverlay({
           <NoteCard
             key={`card-${note.id}`}
             id={note.id}
+            title={note.title}
             content={note.text}
+            pages={note.pages}
             position3D={[note.positionX, note.positionY, note.positionZ]}
             position2D={cardPos}
+            width={note.cardWidth}
+            height={note.cardHeight}
             onPositionChange={(pos) => handleCardPositionChange(note.id, pos)}
+            onSizeChange={(size) => handleCardSizeChange(note.id, size)}
             onDelete={() => onNoteDelete(note.id)}
             onEdit={() => onNoteEdit?.(note.id)}
           />

@@ -300,7 +300,7 @@ export default function ControlsSidebar({
       {/* Toggle Button */}
       <Button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed left-0 top-1/2 -translate-y-1/2 z-50 rounded-l-none rounded-r-lg"
+        className="fixed left-0 top-1/2 -translate-y-1/2 z-[70] rounded-l-none rounded-r-lg"
         variant="secondary"
         size="icon"
         data-drawer-toggle="left"
@@ -311,7 +311,7 @@ export default function ControlsSidebar({
       {/* Sidebar */}
       <div
         data-drawer="left"
-        className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-lg transition-transform duration-300 z-40 overflow-y-auto ${
+        className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-lg transition-transform duration-300 z-[60] overflow-y-auto ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ width: '370px', maxHeight: '100vh' }}

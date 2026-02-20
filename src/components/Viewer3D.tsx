@@ -1042,6 +1042,8 @@ interface Viewer3DProps {
   highlightedNodeNames: string[]
   // Note annotations
   notes: NoteAnnotation[]
+  /** แสดง/ซ่อน Note Annotations บนวิว (หมุด + การ์ด) */
+  showNoteAnnotations?: boolean
   isPlacingNote: boolean
   onNotePlace: (payload: { x: number; y: number; z: number; attachedBoneName?: string; attachedBoneOffset?: { x: number; y: number; z: number } }) => void
   onNoteUpdate: (id: string, updates: Partial<NoteAnnotation>) => void
@@ -1340,6 +1342,7 @@ export default function Viewer3D({
   onNodeNamesChange,
   highlightedNodeNames,
   notes,
+  showNoteAnnotations = true,
   isPlacingNote,
   onNotePlace,
   onNoteUpdate,
@@ -1366,12 +1369,14 @@ export default function Viewer3D({
 
   return (
     <div className="w-full h-screen relative">
-      <NoteOverlay
-        notes={notes}
-        onNoteUpdate={onNoteUpdate}
-        onNoteDelete={onNoteDelete}
-        onNoteEdit={onNoteEdit}
-      />
+      {showNoteAnnotations && (
+        <NoteOverlay
+          notes={notes}
+          onNoteUpdate={onNoteUpdate}
+          onNoteDelete={onNoteDelete}
+          onNoteEdit={onNoteEdit}
+        />
+      )}
       <Canvas shadows>
         <SceneBackground backgroundColor={backgroundColor} />
         <Suspense fallback={null}>
@@ -1447,7 +1452,7 @@ export default function Viewer3D({
             />
           )}
           <CanvasInfoEmitter />
-          {notes.map((note) => (
+          {showNoteAnnotations && notes.map((note) => (
             <NoteMarker3D
               key={note.id}
               note={note}
