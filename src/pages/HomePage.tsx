@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Box, PenTool, List, Settings, Puzzle, FlaskConical } from 'lucide-react'
+import { Box, PenTool, List, LayoutGrid, Puzzle, FlaskConical } from 'lucide-react'
 
 const menuItems = [
   {
@@ -27,11 +27,11 @@ const menuItems = [
     color: 'from-emerald-500 to-teal-400',
   },
   {
-    id: 'settings',
-    title: 'Settings',
-    description: 'ตั้งค่าระบบและปรับแต่ง',
-    icon: Settings,
-    path: null,
+    id: 'layout',
+    title: 'Layout',
+    description: 'จัดวางและออกแบบเลย์เอาต์หน้าแสดงผล',
+    icon: LayoutGrid,
+    path: '/layout',
     color: 'from-orange-500 to-amber-400',
   },
   {

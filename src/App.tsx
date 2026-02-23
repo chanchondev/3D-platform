@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import ViewerPage from './pages/ViewerPage'
+import LayoutPage from './pages/LayoutPage'
 
 export default function App() {
   return (
@@ -9,6 +10,7 @@ export default function App() {
       <Route path="/viewer" element={<ViewerPage />} />
       <Route path="/annotation-tool" element={<ViewerPage />} />
       <Route path="/table-content" element={<ViewerPage />} />
+      <Route path="/layout" element={<LayoutPage />} />
     </Routes>
   )
 }
