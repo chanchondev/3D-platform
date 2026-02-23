@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Box, BookOpen, Layers, Settings, Puzzle, FlaskConical } from 'lucide-react'
+import { Box, PenTool, Layers, Settings, Puzzle, FlaskConical } from 'lucide-react'
 
 const menuItems = [
   {
@@ -11,11 +11,11 @@ const menuItems = [
     color: 'from-blue-500 to-cyan-400',
   },
   {
-    id: 'lessons',
-    title: 'Lessons',
-    description: 'บทเรียนและคำอธิบายเชิงโต้ตอบ',
-    icon: BookOpen,
-    path: null,
+    id: 'annotation-tool',
+    title: 'Annotation Tool',
+    description: 'เครื่องมือใส่คำอธิบายประกอบบนโมเดล 3D',
+    icon: PenTool,
+    path: '/annotation-tool',
     color: 'from-purple-500 to-pink-400',
   },
   {
