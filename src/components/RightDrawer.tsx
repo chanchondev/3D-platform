@@ -76,6 +76,7 @@ export default function RightDrawer({
       text: note.text,
       pages,
       offsetY: note.offsetY,
+      color: note.color,
     })
   }
 
@@ -516,6 +517,25 @@ export default function RightDrawer({
                 placeholder="เช่น หัวข้อโน้ต หรือเว้นว่างได้"
                 className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">สีหัวการ์ด / หมุด</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={editNote.color ?? '#ef4444'}
+                  onChange={(e) => setEditNote({ ...editNote, color: e.target.value })}
+                  className="h-9 w-14 cursor-pointer rounded border border-input bg-background p-0.5"
+                  title="เลือกสี"
+                />
+                <input
+                  type="text"
+                  value={editNote.color ?? '#ef4444'}
+                  onChange={(e) => setEditNote({ ...editNote, color: e.target.value || undefined })}
+                  placeholder="#ef4444"
+                  className="flex-1 p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                />
+              </div>
             </div>
             <NoteRichEditor
               key={editingNoteId ?? 'modal-editor'}

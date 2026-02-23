@@ -7,7 +7,7 @@ import TableOfContentsDrawer from '../components/TableOfContentsDrawer'
 import TCPreview from '../components/TCPreview'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
-import { Upload, Trash2, ArrowLeft } from 'lucide-react'
+import { Upload, Trash2, ArrowLeft, StickyNote } from 'lucide-react'
 import type { NodeTransform, NoteAnnotation, NotePage, TextAnnotation, PartListItem, TocSection } from '../types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '../components/ui/dialog'
 import NoteRichEditor from '../components/annotations/NoteRichEditor'
@@ -118,11 +118,12 @@ export default function ViewerPage() {
 
   // Note annotations state
   const [notes, setNotes] = useState<NoteAnnotation[]>([])
+  const [showNoteAnnotations, setShowNoteAnnotations] = useState(true)
   const [isPlacingNote, setIsPlacingNote] = useState(false)
   const [focusNotePosition, setFocusNotePosition] = useState<{ x: number; y: number; z: number } | null>(null)
   const [movingNoteId, setMovingNoteId] = useState<string | null>(null)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
-  const [editNoteDraft, setEditNoteDraft] = useState<{ title: string; pages: NotePage[] } | null>(null)
+  const [editNoteDraft, setEditNoteDraft] = useState<{ title: string; pages: NotePage[]; color?: string } | null>(null)
 
   // Text annotations state
   const [textAnnotations, setTextAnnotations] = useState<TextAnnotation[]>([])
@@ -327,6 +328,7 @@ export default function ViewerPage() {
       setEditNoteDraft({
         title: note.title ?? '',
         pages: note.pages?.length ? note.pages : [{ content: note.text ?? '' }],
+        color: note.color,
       })
     }
   }
@@ -336,6 +338,7 @@ export default function ViewerPage() {
     handleNoteUpdate(editingNoteId, {
       title: editNoteDraft.title.trim() || undefined,
       pages: editNoteDraft.pages,
+      color: editNoteDraft.color,
     })
     setEditingNoteId(null)
     setEditNoteDraft(null)
@@ -652,6 +655,7 @@ export default function ViewerPage() {
           onNodeNamesChange={handleNodeNamesChange}
           highlightedNodeNames={highlightedNodeNames}
           notes={notes}
+          showNoteAnnotations={showNoteAnnotations}
           isPlacingNote={isPlacingNote}
           onNotePlace={handleNotePlace}
           onNoteUpdate={handleNoteUpdate}
@@ -691,6 +695,14 @@ export default function ViewerPage() {
           >
             Clear
           </Button>
+          <Button
+            variant={showNoteAnnotations ? 'secondary' : 'outline'}
+            onClick={() => setShowNoteAnnotations((v) => !v)}
+            title={showNoteAnnotations ? 'ซ่อน Note Annotations' : 'แสดง Note Annotations'}
+          >
+            <StickyNote className="mr-2 h-4 w-4" />
+            Note Annotations
+          </Button>
         </div>
 
         <Dialog
@@ -722,6 +734,31 @@ export default function ViewerPage() {
                       placeholder="เช่น หัวข้อโน้ต หรือเว้นว่างได้"
                       className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      สีหัวการ์ด / หมุด
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={editNoteDraft.color ?? '#ef4444'}
+                        onChange={(e) =>
+                          setEditNoteDraft((prev) => (prev ? { ...prev, color: e.target.value } : null))
+                        }
+                        className="h-9 w-14 cursor-pointer rounded border border-input bg-background p-0.5"
+                        title="เลือกสี"
+                      />
+                      <input
+                        type="text"
+                        value={editNoteDraft.color ?? '#ef4444'}
+                        onChange={(e) =>
+                          setEditNoteDraft((prev) => (prev ? { ...prev, color: e.target.value || undefined } : null))
+                        }
+                        placeholder="#ef4444"
+                        className="flex-1 p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                      />
+                    </div>
                   </div>
                   <NoteRichEditor
                     key={editingNoteId ?? 'edit'}

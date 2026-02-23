@@ -25,6 +25,23 @@ export default function NoteOverlay({
   >({})
   const canvasOffsetRef = useRef({ x: 0, y: 0 })
 
+  // คืนตำแหน่งการ์ดจาก note ที่เคยบันทึก (หลังปิดแล้วเปิด Note Annotations)
+  useEffect(() => {
+    setCardPositions((prev) => {
+      let next = { ...prev }
+      for (const note of notes) {
+        if (
+          note.cardPositionX != null &&
+          note.cardPositionY != null &&
+          !(note.id in next)
+        ) {
+          next[note.id] = { x: note.cardPositionX, y: note.cardPositionY }
+        }
+      }
+      return next
+    })
+  }, [notes])
+
   useEffect(() => {
     const handleCanvasInfo = (e: CustomEvent<{ left: number; top: number }>) => {
       canvasOffsetRef.current = {
@@ -44,25 +61,25 @@ export default function NoteOverlay({
       }>
       const { id, screenPos } = customEvent.detail
       const canvas = canvasOffsetRef.current
+      const newCardPos = {
+        x: screenPos.x + canvas.x + 100,
+        y: screenPos.y + canvas.y - 50,
+      }
       setScreenPositions((prev) => ({ ...prev, [id]: screenPos }))
       setCardPositions((prev) => {
         if (prev[id]) return prev
-        return {
-          ...prev,
-          [id]: {
-            x: screenPos.x + canvas.x + 100,
-            y: screenPos.y + canvas.y - 50,
-          },
-        }
+        onNoteUpdate(id, { cardPositionX: newCardPos.x, cardPositionY: newCardPos.y })
+        return { ...prev, [id]: newCardPos }
       })
     }
     window.addEventListener('noteScreenPosition', handleScreenPosition)
     return () =>
       window.removeEventListener('noteScreenPosition', handleScreenPosition)
-  }, [])
+  }, [onNoteUpdate])
 
   const handleCardPositionChange = (id: string, pos: { x: number; y: number }) => {
     setCardPositions((prev) => ({ ...prev, [id]: pos }))
+    onNoteUpdate(id, { cardPositionX: pos.x, cardPositionY: pos.y })
   }
 
   const handleCardSizeChange = (id: string, size: { width: number; height: number }) => {
@@ -81,6 +98,7 @@ export default function NoteOverlay({
             title={note.title}
             content={note.text}
             pages={note.pages}
+            color={note.color ?? NOTE_COLOR}
             position3D={[note.positionX, note.positionY, note.positionZ]}
             position2D={cardPos}
             width={note.cardWidth}
@@ -118,16 +136,17 @@ export default function NoteOverlay({
             const cardTopCenterX = cardRect.left + cardRect.width / 2
             const cardTopCenterY = cardRect.top
 
+            const strokeColor = note.color ?? NOTE_COLOR
             return (
               <g key={`connector-${note.id}`}>
                 <path
                   d={`M ${lineStartX} ${lineStartY} Q ${(lineStartX + cardTopCenterX) / 2} ${(lineStartY + cardTopCenterY) / 2 - 30}, ${cardTopCenterX} ${cardTopCenterY}`}
-                  stroke={NOTE_COLOR}
+                  stroke={strokeColor}
                   strokeWidth="2"
                   fill="none"
                   opacity={0.7}
                 />
-                <circle cx={lineStartX} cy={lineStartY} r="6" fill={NOTE_COLOR} opacity={0.8}>
+                <circle cx={lineStartX} cy={lineStartY} r="6" fill={strokeColor} opacity={0.8}>
                   <animate
                     attributeName="r"
                     values="6;8;6"
