@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Box, PenTool, Layers, Settings, Puzzle, FlaskConical } from 'lucide-react'
+import { Box, PenTool, List, Settings, Puzzle, FlaskConical } from 'lucide-react'
 
 const menuItems = [
   {
@@ -19,11 +19,11 @@ const menuItems = [
     color: 'from-purple-500 to-pink-400',
   },
   {
-    id: 'explore',
-    title: 'Explore',
-    description: 'สำรวจชิ้นส่วนและโครงสร้างโมเดล',
-    icon: Layers,
-    path: null,
+    id: 'table-content',
+    title: 'Table Content',
+    description: 'จัดการสารบัญและลำดับเนื้อหาของโมเดล 3D',
+    icon: List,
+    path: '/table-content',
     color: 'from-emerald-500 to-teal-400',
   },
   {

@@ -8,6 +8,7 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/viewer" element={<ViewerPage />} />
       <Route path="/annotation-tool" element={<ViewerPage />} />
+      <Route path="/table-content" element={<ViewerPage />} />
     </Routes>
   )
 }
