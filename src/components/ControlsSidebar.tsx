@@ -197,14 +197,28 @@ interface ControlsSidebarProps {
     setFov: (v: number) => void
   }
   sceneControls: {
+    containerWidth: string
+    containerHeight: string
+    containerAlign: 'left' | 'center' | 'right'
+    containerVerticalAlign: 'top' | 'center' | 'bottom'
+    setContainerWidth: (v: string) => void
+    setContainerHeight: (v: string) => void
+    setContainerAlign: (v: 'left' | 'center' | 'right') => void
+    setContainerVerticalAlign: (v: 'top' | 'center' | 'bottom') => void
     backgroundColor: string
     enableGrid: boolean
     gridSize: number
     gridDivisions: number
+    gridCellColor: string
+    gridSectionColor: string
+    gridPositionY: number
     setBackgroundColor: (v: string) => void
     setEnableGrid: (v: boolean) => void
     setGridSize: (v: number) => void
     setGridDivisions: (v: number) => void
+    setGridCellColor: (v: string) => void
+    setGridSectionColor: (v: string) => void
+    setGridPositionY: (v: number) => void
     envPreset: string
     envHdrUrl: string | null
     envBackground: boolean
@@ -807,6 +821,88 @@ export default function ControlsSidebar({
             </CardHeader>
             {activeSection === 'scene' && (
               <CardContent className="space-y-3">
+                <div className="border-b border-border pb-3 mb-1">
+                  <label className="text-xs font-medium text-foreground block mb-2">Container Size</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Width</label>
+                      <input
+                        type="text"
+                        value={sceneControls.containerWidth}
+                        onChange={(e) => sceneControls.setContainerWidth(e.target.value)}
+                        placeholder="e.g. 100%, 800px"
+                        className="w-full text-xs px-2 py-1.5 rounded border border-border bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Height</label>
+                      <input
+                        type="text"
+                        value={sceneControls.containerHeight}
+                        onChange={(e) => sceneControls.setContainerHeight(e.target.value)}
+                        placeholder="e.g. 100vh, 600px"
+                        className="w-full text-xs px-2 py-1.5 rounded border border-border bg-background"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-1 mt-1.5 flex-wrap">
+                    {[
+                      { label: 'Full', w: '100%', h: '100vh' },
+                      { label: '80%', w: '80%', h: '80vh' },
+                      { label: '50%', w: '50%', h: '50vh' },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          sceneControls.setContainerWidth(preset.w)
+                          sceneControls.setContainerHeight(preset.h)
+                        }}
+                        className="text-[10px] px-2 py-0.5 rounded border border-border hover:bg-accent"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2">
+                    <label className="text-xs text-muted-foreground">Horizontal Align</label>
+                    <div className="flex gap-1 mt-1">
+                      {(['left', 'center', 'right'] as const).map((align) => (
+                        <button
+                          key={align}
+                          type="button"
+                          onClick={() => sceneControls.setContainerAlign(align)}
+                          className={`flex-1 text-[10px] px-2 py-1 rounded border capitalize ${
+                            sceneControls.containerAlign === align
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'border-border hover:bg-accent'
+                          }`}
+                        >
+                          {align === 'left' ? '← Left' : align === 'center' ? 'Center' : 'Right →'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <label className="text-xs text-muted-foreground">Vertical Align</label>
+                    <div className="flex gap-1 mt-1">
+                      {(['top', 'center', 'bottom'] as const).map((align) => (
+                        <button
+                          key={align}
+                          type="button"
+                          onClick={() => sceneControls.setContainerVerticalAlign(align)}
+                          className={`flex-1 text-[10px] px-2 py-1 rounded border capitalize ${
+                            sceneControls.containerVerticalAlign === align
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'border-border hover:bg-accent'
+                          }`}
+                        >
+                          {align === 'top' ? '↑ Top' : align === 'center' ? 'Center' : '↓ Bottom'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Background Color</label>
                   <input
@@ -849,6 +945,39 @@ export default function ControlsSidebar({
                     className="w-full"
                   />
                   <span className="text-xs">{sceneControls.gridDivisions}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Cell Color</label>
+                    <input
+                      type="color"
+                      value={sceneControls.gridCellColor}
+                      onChange={(e) => sceneControls.setGridCellColor(e.target.value)}
+                      className="w-full h-8 rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Section Color</label>
+                    <input
+                      type="color"
+                      value={sceneControls.gridSectionColor}
+                      onChange={(e) => sceneControls.setGridSectionColor(e.target.value)}
+                      className="w-full h-8 rounded"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Grid Floor Level (Y)</label>
+                  <input
+                    type="range"
+                    min="-10"
+                    max="10"
+                    step="0.1"
+                    value={sceneControls.gridPositionY}
+                    onChange={(e) => sceneControls.setGridPositionY(parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                  <span className="text-xs">{sceneControls.gridPositionY.toFixed(1)}</span>
                 </div>
 
                 {/* Environment Controls */}

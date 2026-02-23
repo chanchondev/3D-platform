@@ -998,11 +998,19 @@ interface Viewer3DProps {
   cameraTargetZ?: number | null
   cameraTargetFov?: number | null
   onCameraTransitionEnd?: () => void
+  // Container size & alignment
+  containerWidth?: string
+  containerHeight?: string
+  containerAlign?: 'left' | 'center' | 'right'
+  containerVerticalAlign?: 'top' | 'center' | 'bottom'
   // Scene controls
   backgroundColor: string
   enableGrid: boolean
   gridSize: number
   gridDivisions: number
+  gridCellColor: string
+  gridSectionColor: string
+  gridPositionY: number
   // Environment controls
   envPreset: string
   envHdrUrl: string | null
@@ -1306,10 +1314,17 @@ export default function Viewer3D({
   cameraTargetZ,
   cameraTargetFov,
   onCameraTransitionEnd,
+  containerWidth = '100%',
+  containerHeight = '100vh',
+  containerAlign = 'left',
+  containerVerticalAlign = 'top',
   backgroundColor,
   enableGrid,
   gridSize,
   gridDivisions,
+  gridCellColor,
+  gridSectionColor,
+  gridPositionY,
   envPreset,
   envHdrUrl,
   envBackground,
@@ -1369,8 +1384,25 @@ export default function Viewer3D({
     }
   }, [modelRef.current])
 
+  const justifyMap = { left: 'flex-start', center: 'center', right: 'flex-end' } as const
+  const alignMap = { top: 'flex-start', center: 'center', bottom: 'flex-end' } as const
+
   return (
-    <div className="w-full h-screen relative">
+    <div
+      className="w-full h-screen flex"
+      style={{
+        justifyContent: justifyMap[containerAlign],
+        alignItems: alignMap[containerVerticalAlign],
+      }}
+    >
+    <div
+      id="3d-container"
+      className="relative"
+      style={{
+        width: containerWidth,
+        height: containerHeight,
+      }}
+    >
       {showNoteAnnotations && (
         <NoteOverlay
           notes={notes}
@@ -1400,8 +1432,9 @@ export default function Viewer3D({
           {enableGrid && (
             <Grid
               args={[gridSize, gridDivisions]}
-              cellColor="#6f6f6f"
-              sectionColor="#9d4b4b"
+              position={[0, gridPositionY, 0]}
+              cellColor={gridCellColor}
+              sectionColor={gridSectionColor}
               fadeDistance={25}
               fadeStrength={1}
             />
@@ -1515,6 +1548,7 @@ export default function Viewer3D({
           )}
         </Suspense>
       </Canvas>
+    </div>
     </div>
   )
 }

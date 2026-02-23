@@ -63,11 +63,20 @@ export default function ViewerPage() {
   const [cameraZ, setCameraZ] = useState(10)
   const [fov, setFov] = useState(50)
 
+  // Container size state
+  const [containerWidth, setContainerWidth] = useState('100%')
+  const [containerHeight, setContainerHeight] = useState('100vh')
+  const [containerAlign, setContainerAlign] = useState<'left' | 'center' | 'right'>('left')
+  const [containerVerticalAlign, setContainerVerticalAlign] = useState<'top' | 'center' | 'bottom'>('top')
+
   // Scene controls state
   const [backgroundColor, setBackgroundColor] = useState('#1a1a1a')
   const [enableGrid, setEnableGrid] = useState(true)
   const [gridSize, setGridSize] = useState(10)
   const [gridDivisions, setGridDivisions] = useState(10)
+  const [gridCellColor, setGridCellColor] = useState('#6f6f6f')
+  const [gridSectionColor, setGridSectionColor] = useState('#d6d6d6')
+  const [gridPositionY, setGridPositionY] = useState(0)
 
   // Environment controls state
   const [envPreset, setEnvPreset] = useState<string>('sunset')
@@ -476,8 +485,12 @@ export default function ViewerPage() {
           setCameraX, setCameraY, setCameraZ, setFov,
         }}
         sceneControls={{
+          containerWidth, containerHeight, containerAlign, containerVerticalAlign,
+          setContainerWidth, setContainerHeight, setContainerAlign, setContainerVerticalAlign,
           backgroundColor, enableGrid, gridSize, gridDivisions,
+          gridCellColor, gridSectionColor, gridPositionY,
           setBackgroundColor, setEnableGrid, setGridSize, setGridDivisions,
+          setGridCellColor, setGridSectionColor, setGridPositionY,
           envPreset, envHdrUrl, envBackground,
           envBackgroundBlurriness, envBackgroundIntensity, envIntensity,
           setEnvPreset, setEnvHdrUrl, setEnvBackground,
@@ -594,10 +607,17 @@ export default function ViewerPage() {
           cameraTargetZ={cameraTargetZ}
           cameraTargetFov={cameraTargetFov}
           onCameraTransitionEnd={handleCameraTransitionEnd}
+          containerWidth={containerWidth}
+          containerHeight={containerHeight}
+          containerAlign={containerAlign}
+          containerVerticalAlign={containerVerticalAlign}
           backgroundColor={backgroundColor}
           enableGrid={enableGrid}
           gridSize={gridSize}
           gridDivisions={gridDivisions}
+          gridCellColor={gridCellColor}
+          gridSectionColor={gridSectionColor}
+          gridPositionY={gridPositionY}
           envPreset={envPreset}
           envHdrUrl={envHdrUrl}
           envBackground={envBackground}
