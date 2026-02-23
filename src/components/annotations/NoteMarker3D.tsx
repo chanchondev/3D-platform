@@ -31,7 +31,7 @@ interface NoteMarker3DProps {
   onDragEnd?: () => void
 }
 
-const NOTE_COLOR = '#ef4444'
+const DEFAULT_NOTE_COLOR = '#ef4444'
 const NOTE_FOCUS_COLOR = '#3b82f6' 
 
 export default function NoteMarker3D({
@@ -142,21 +142,22 @@ export default function NoteMarker3D({
   const sphereRadius = isMoving ? 0.07 : 0.05
   const ringInner = isMoving ? 0.12 : 0.08
   const ringOuter = isMoving ? 0.16 : 0.1
+  const pinColor = note.color ?? DEFAULT_NOTE_COLOR
 
   return (
     <group ref={groupRef} position={displayPosition}>
       <mesh ref={markerRef} onPointerDown={handlePointerDown}>
         <sphereGeometry args={[sphereRadius, 16, 16]} />
         <meshStandardMaterial
-          color={isMoving ? NOTE_FOCUS_COLOR : NOTE_COLOR}
-          emissive={isMoving ? NOTE_FOCUS_COLOR : NOTE_COLOR}
+          color={isMoving ? NOTE_FOCUS_COLOR : pinColor}
+          emissive={isMoving ? NOTE_FOCUS_COLOR : pinColor}
           emissiveIntensity={isMoving ? 1 : 0.5}
         />
       </mesh>
       <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[ringInner, ringOuter, 32]} />
         <meshBasicMaterial
-          color={isMoving ? NOTE_FOCUS_COLOR : NOTE_COLOR}
+          color={isMoving ? NOTE_FOCUS_COLOR : pinColor}
           transparent
           opacity={isMoving ? 0.6 : 0.3}
         />

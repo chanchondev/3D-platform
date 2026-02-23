@@ -11,6 +11,8 @@ const MIN_HEIGHT = 160
 const MAX_WIDTH = 560
 const MAX_HEIGHT = 480
 
+const DEFAULT_NOTE_COLOR = '#ef4444'
+
 interface NoteCardProps {
   id: string
   /** หัวข้อการ์ด (แก้ไขได้, ไม่ใส่ก็ได้ — ไม่ส่งมาจะไม่แสดงหัวข้อ) */
@@ -19,6 +21,8 @@ interface NoteCardProps {
   content?: string
   /** เนื้อหาแบบหลายหน้า (HTML ได้) */
   pages?: NotePage[]
+  /** สีหัวการ์ด/เส้นเชื่อม (hex) */
+  color?: string
   position3D: [number, number, number]
   position2D: { x: number; y: number }
   /** ความกว้าง/สูงการ์ด (px) — ไม่ส่งใช้ค่า default */
@@ -31,7 +35,7 @@ interface NoteCardProps {
 }
 
 export default function NoteCard(props: NoteCardProps) {
-  const { id, title, content = '', pages: propPages, position2D, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, onPositionChange, onSizeChange, onDelete, onEdit } = props
+  const { id, title, content = '', pages: propPages, color = DEFAULT_NOTE_COLOR, position2D, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, onPositionChange, onSizeChange, onDelete, onEdit } = props
   const pages: NotePage[] = propPages?.length ? propPages : [{ content: content || '' }]
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [viewOpen, setViewOpen] = useState(false)
@@ -147,7 +151,10 @@ export default function NoteCard(props: NoteCardProps) {
       }}
       onMouseDown={handleMouseDown}
     >
-      <div className="bg-gradient-to-r from-red-500 to-red-600 text-white p-3 rounded-t-lg flex items-center justify-between">
+      <div
+        className="text-white p-3 rounded-t-lg flex items-center justify-between"
+        style={{ backgroundColor: color }}
+      >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <GripVertical className="w-4 h-4 opacity-70 shrink-0" />
           {title != null && title.trim() !== '' && (

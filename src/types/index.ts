@@ -34,11 +34,16 @@ export interface NoteAnnotation {
   cardWidth?: number
   /** ความสูงการ์ดบนจอ (px) — ปรับขนาดได้ */
   cardHeight?: number
+  /** ตำแหน่งการ์ดบนจอ (px) — ใช้คืนตำแหน่งเมื่อปิด/เปิด Note Annotations */
+  cardPositionX?: number
+  cardPositionY?: number
   createdAt: Date
   /** ถ้ามีค่า หมุดจะผูกกับกระดูกนี้และเคลื่อนตาม animation */
   attachedBoneName?: string
   /** ออฟเซ็ตจากกระดูก (local space) ใช้เมื่อ attachedBoneName มีค่า */
   attachedBoneOffset?: { x: number; y: number; z: number }
+  /** สีหัวการ์ด/หมุด (hex เช่น #ef4444) — เปลี่ยนได้ใน modal แก้ไขโน้ต */
+  color?: string
 }
 
 export interface TextAnnotation {
