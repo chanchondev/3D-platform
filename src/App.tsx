@@ -4,7 +4,7 @@ import ControlsSidebar from './components/ControlsSidebar'
 import RightDrawer from './components/RightDrawer'
 import TableOfContentsDrawer from './components/TableOfContentsDrawer'
 import TCPreview from './components/TCPreview'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card'
 import { Button } from './components/ui/button'
 import { Upload, Trash2 } from 'lucide-react'
 import type { NodeTransform, NoteAnnotation, NotePage, TextAnnotation, PartListItem, TocSection } from './types'
@@ -420,34 +420,9 @@ function App() {
         id="file-upload"
       />
 
-      {/* Upload Screen */}
-      {!selectedModel && (
-        <div className="flex-1 flex items-center justify-center">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Upload 3D Model</CardTitle>
-              <CardDescription>
-                Upload your GLB or GLTF file to view it in 3D
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={() => document.getElementById('file-upload')?.click()}
-                className="w-full"
-                size="lg"
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                Choose File
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* 3D Viewer */}
-      {selectedModel && (
-        <>
-          <TCPreview
+      {/* 3D Viewer (always visible) */}
+      <>
+        <TCPreview
             sections={tocSections}
             activeSectionId={activeTocSectionId}
             onSectionClick={handleTocSectionClick}
@@ -686,7 +661,7 @@ function App() {
             )}
 
             <Viewer3D
-              modelUrl={selectedModel}
+              modelUrl={selectedModel ?? undefined}
               positionX={positionX}
               positionY={positionY}
               positionZ={positionZ}
@@ -786,8 +761,8 @@ function App() {
               <Button
                 variant="secondary"
                 onClick={() => {
-                  if (selectedModel.startsWith('blob:')) {
-                    URL.revokeObjectURL(selectedModel)
+                  if (selectedModel?.startsWith('blob:')) {
+                    URL.revokeObjectURL(selectedModel!)
                   }
                   setSelectedModel(null)
                 }}
@@ -849,8 +824,7 @@ function App() {
               </DialogContent>
             </Dialog>
           </div>
-        </>
-      )}
+      </>
     </div>
   )
 }

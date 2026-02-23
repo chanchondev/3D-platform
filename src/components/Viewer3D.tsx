@@ -180,10 +180,11 @@ const Model = forwardRef<any, ModelProps>(({
       }
 
       // Collect nodes (meshes, groups, etc.) and read current transform from scene
-      if (obj.name && !nodes.includes(obj.name)) {
+      // Skip root scene object — its transform is controlled by Model Transform sliders via <primitive> props
+      if (obj !== scene && obj.name && !nodes.includes(obj.name)) {
         nodes.push(obj.name)
       }
-      if (obj.name) {
+      if (obj !== scene && obj.name) {
         const s = obj.scale
         const scaleVal = (s.x + s.y + s.z) / 3
         initialNodeTransforms[obj.name] = {
@@ -426,12 +427,13 @@ const Model = forwardRef<any, ModelProps>(({
   }, [scene, selectedTexture, textureScaleX, textureScaleY, textureOffsetX, textureOffsetY, textureRotation])
 
   // Control nodes (apply per-node transforms)
+  // Skip root scene object — its transform is managed by <primitive> props (Model Transform sliders)
   useEffect(() => {
     if (!scene || !nodeTransforms) return
 
     Object.entries(nodeTransforms).forEach(([nodeName, t]: [string, NodeTransform]) => {
       traverseScene(scene, (obj) => {
-        if (obj.name === nodeName) {
+        if (obj !== scene && obj.name === nodeName) {
           obj.visible = t.visible
           obj.position.set(t.positionX, t.positionY, t.positionZ)
           obj.rotation.set(t.rotationX, t.rotationY, t.rotationZ)
