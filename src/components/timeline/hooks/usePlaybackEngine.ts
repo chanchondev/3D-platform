@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import type { Shot, TocSection, TransitionEasing } from '../types'
+import type { Shot, TransitionEasing } from '../types'
+import type { TocSection } from '../../../types'
 
 /* ─── Easing helpers ─── */
 
