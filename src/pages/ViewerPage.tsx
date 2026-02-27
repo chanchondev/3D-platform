@@ -1,18 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Viewer3D from '../components/Viewer3D'
 import ControlsSidebar from '../components/ControlsSidebar'
 import RightDrawer from '../components/RightDrawer'
 import TableOfContentsDrawer from '../components/TableOfContentsDrawer'
 import TCPreview from '../components/TCPreview'
-import TimelinePanel from '../components/TimelinePanel'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
-import { Upload, Trash2, ArrowLeft, StickyNote, Download, FolderOpen } from 'lucide-react'
-import type { NodeTransform, NoteAnnotation, NotePage, TextAnnotation, PartListItem, TocSection, Sequence, Shot } from '../types'
+import { Upload, Trash2, ArrowLeft, StickyNote } from 'lucide-react'
+import type { NodeTransform, NoteAnnotation, NotePage, TextAnnotation, PartListItem, TocSection, AnimationItem, CameraState, HighlightOverride, NonSelectedStyle } from '../types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '../components/ui/dialog'
 import NoteRichEditor from '../components/annotations/NoteRichEditor'
-import { usePlaybackEngine } from '../hooks/usePlaybackEngine'
+import { useSectionPlayback } from '../hooks/useSectionPlayback'
 
 const defaultNodeTransform = (): NodeTransform => ({
   visible: true,
@@ -146,136 +145,58 @@ export default function ViewerPage() {
   const [cameraTargetZ, setCameraTargetZ] = useState<number | null>(null)
   const [cameraTargetFov, setCameraTargetFov] = useState<number | null>(null)
 
-  // ─── Sequencer / Timeline state ───
-  const [sequence, setSequence] = useState<Sequence>({
-    id: 'seq-default',
-    name: 'Sequence 1',
-    shots: [],
+  // Clip durations map (clipName → seconds)
+  const [clipDurations, setClipDurations] = useState<Record<string, number>>({})
+
+  // Model ref accessor for section playback
+  const getModelRef = useCallback(() => (window as any).__modelRef, [])
+
+  const sectionPlayback = useSectionPlayback({
+    sections: tocSections,
+    clipDurations,
+    playClip: useCallback(
+      (clipName: string, trimIn: number, trimOut: number, speed: number) => {
+        const ref = getModelRef()
+        if (ref?.playClipTrimmed) ref.playClipTrimmed(clipName, trimIn, trimOut, speed)
+      },
+      [getModelRef],
+    ),
+    seekClip: useCallback(
+      (clipName: string, timeSec: number) => {
+        const ref = getModelRef()
+        if (ref?.seekClip) ref.seekClip(clipName, timeSec)
+      },
+      [getModelRef],
+    ),
+    pauseClip: useCallback(() => {
+      const ref = getModelRef()
+      if (ref?.pauseClip) ref.pauseClip()
+    }, [getModelRef]),
+    stopClip: useCallback(() => {
+      const ref = getModelRef()
+      if (ref?.stopClip) ref.stopClip()
+    }, [getModelRef]),
+    getClipTime: useCallback(() => {
+      const ref = getModelRef()
+      return ref?.getClipTime?.() ?? 0
+    }, [getModelRef]),
+    applyCameraOverride: useCallback(
+      (camera: CameraState) => {
+        setCameraTargetX(camera.x)
+        setCameraTargetY(camera.y)
+        setCameraTargetZ(camera.z)
+        setCameraTargetFov(camera.fov)
+      },
+      [],
+    ),
+    applyHighlightOverride: useCallback(
+      (hl: HighlightOverride | null) => setActiveItemHighlight(hl),
+      [],
+    ),
   })
-  const [defaultShotDuration, setDefaultShotDuration] = useState(3)
-
-  const playback = usePlaybackEngine(sequence.shots, tocSections)
-
-  // When playback is running, override camera / animation / highlights
-  const prevActiveShotRef = useRef(-1)
-  const pbState = playback.state
-
-  useEffect(() => {
-    if (!pbState) return
-    // Apply camera instantly (no smooth transition – playback engine handles interpolation)
-    setCameraX(pbState.cameraX)
-    setCameraY(pbState.cameraY)
-    setCameraZ(pbState.cameraZ)
-    setFov(pbState.cameraFov)
-    // Apply highlights
-    setTocHighlightNodes(pbState.highlightNodes)
-
-    // On shot change → apply animation
-    if (pbState.activeShotIndex !== prevActiveShotRef.current) {
-      prevActiveShotRef.current = pbState.activeShotIndex
-      if (pbState.animationName) {
-        setSelectedAnimation(pbState.animationName)
-        setAnimationSpeed(pbState.animationSpeed)
-        setAnimationEnabled(true)
-        // restart clip
-        const modelRef = (window as any).__modelRef
-        if (modelRef) {
-          modelRef.stop()
-          modelRef.play()
-        }
-      }
-    }
-  }, [pbState])
-
-  // ─── Sequence CRUD ───
-  const handleAddShot = useCallback((sectionId: string) => {
-    const newShot: Shot = {
-      shotId: `shot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      sectionId,
-      duration: defaultShotDuration,
-      transition: { type: 'crossfade', duration: 0.5, easing: 'easeInOut' },
-    }
-    setSequence((prev) => ({ ...prev, shots: [...prev.shots, newShot] }))
-  }, [defaultShotDuration])
-
-  const handleRemoveShot = useCallback((shotId: string) => {
-    setSequence((prev) => ({ ...prev, shots: prev.shots.filter((s) => s.shotId !== shotId) }))
-  }, [])
-
-  const handleUpdateShots = useCallback((shots: Shot[]) => {
-    setSequence((prev) => ({ ...prev, shots }))
-  }, [])
-
-  const handleCreateFromToc = useCallback(() => {
-    const shots: Shot[] = tocSections.map((sec, i) => ({
-      shotId: `shot-${Date.now()}-${i}`,
-      sectionId: sec.id,
-      duration: defaultShotDuration,
-      transition: { type: i === 0 ? 'cut' as const : 'crossfade' as const, duration: 0.5, easing: 'easeInOut' as const },
-    }))
-    setSequence((prev) => ({ ...prev, shots }))
-  }, [tocSections, defaultShotDuration])
-
-  // ─── Save / Load JSON ───
-  const handleSaveProject = useCallback(() => {
-    const data = JSON.stringify({ sections: tocSections, sequence }, null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${sequence.name || 'project'}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }, [tocSections, sequence])
-
-  const handleLoadProject = useCallback(() => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.json'
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (!file) return
-      const reader = new FileReader()
-      reader.onload = () => {
-        try {
-          const data = JSON.parse(reader.result as string)
-          if (data.sections) setTocSections(data.sections)
-          if (data.sequence) setSequence(data.sequence)
-        } catch {
-          // invalid JSON – ignore
-        }
-      }
-      reader.readAsText(file)
-    }
-    input.click()
-  }, [])
-
-  // ─── Keyboard shortcuts ───
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Ignore when typing in inputs
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-
-      if (e.code === 'Space') {
-        e.preventDefault()
-        playback.isPlaying ? playback.pause() : playback.play()
-      }
-      if (e.code === 'ArrowLeft') {
-        e.preventDefault()
-        playback.seek(Math.max(0, playback.currentTime - 0.5))
-      }
-      if (e.code === 'ArrowRight') {
-        e.preventDefault()
-        playback.seek(playback.currentTime + 0.5)
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [playback])
 
   const handleAddTocSection = () => {
-    setTocSections((prev) => [...prev, { id: `sec-${Date.now()}`, title: 'New Section' }])
+    setTocSections((prev) => [...prev, { id: `sec-${Date.now()}`, title: 'New Section', animations: [] }])
   }
 
   const handleRemoveTocSection = (id: string) => {
@@ -287,12 +208,174 @@ export default function ViewerPage() {
     setTocSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)))
   }
 
+  // --- Animation stack CRUD ---
+  const handleAddAnimationItem = (sectionId: string, clipName: string) => {
+    const dur = clipDurations[clipName] ?? 0
+    const newItem: AnimationItem = {
+      id: `anim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      animationClipName: clipName,
+      speed: 1,
+      trim: { sourceStartSec: 0, sourceEndSec: dur, trimInSec: 0, trimOutSec: dur },
+    }
+    setTocSections((prev) =>
+      prev.map((s) =>
+        s.id === sectionId ? { ...s, animations: [...(s.animations ?? []), newItem] } : s,
+      ),
+    )
+  }
+
+  const handleRemoveAnimationItem = (sectionId: string, itemId: string) => {
+    // if item is playing, stop first
+    if (sectionPlayback.state.itemId === itemId) sectionPlayback.stopAll()
+    setTocSections((prev) =>
+      prev.map((s) =>
+        s.id === sectionId
+          ? { ...s, animations: (s.animations ?? []).filter((a) => a.id !== itemId) }
+          : s,
+      ),
+    )
+  }
+
+  const handleReorderAnimationItems = (sectionId: string, fromIdx: number, toIdx: number) => {
+    setTocSections((prev) =>
+      prev.map((s) => {
+        if (s.id !== sectionId) return s
+        const anims = [...(s.animations ?? [])]
+        const [moved] = anims.splice(fromIdx, 1)
+        anims.splice(toIdx, 0, moved)
+        return { ...s, animations: anims }
+      }),
+    )
+  }
+
+  const handleUpdateAnimationItem = (sectionId: string, itemId: string, patch: Partial<AnimationItem>) => {
+    setTocSections((prev) =>
+      prev.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              animations: (s.animations ?? []).map((a) =>
+                a.id === itemId ? { ...a, ...patch } : a,
+              ),
+            }
+          : s,
+      ),
+    )
+  }
+
+  const handleResetTrim = (sectionId: string, itemId: string) => {
+    setTocSections((prev) =>
+      prev.map((s) => {
+        if (s.id !== sectionId) return s
+        return {
+          ...s,
+          animations: (s.animations ?? []).map((a) => {
+            if (a.id !== itemId) return a
+            const dur = clipDurations[a.animationClipName] ?? 0
+            return { ...a, trim: { sourceStartSec: 0, sourceEndSec: dur, trimInSec: 0, trimOutSec: dur } }
+          }),
+        }
+      }),
+    )
+  }
+
+  // --- Per-item camera override handlers ---
+  const handleToggleItemCameraOverride = (sectionId: string, itemId: string, enabled: boolean) => {
+    handleUpdateAnimationItem(sectionId, itemId, {
+      cameraOverride: {
+        enabled,
+        camera: findItem(sectionId, itemId)?.cameraOverride?.camera ?? { x: cameraX, y: cameraY, z: cameraZ, fov },
+      },
+    })
+  }
+
+  const handleSetItemCameraFromView = (sectionId: string, itemId: string) => {
+    const existing = findItem(sectionId, itemId)?.cameraOverride
+    handleUpdateAnimationItem(sectionId, itemId, {
+      cameraOverride: {
+        enabled: existing?.enabled ?? true,
+        camera: { x: cameraX, y: cameraY, z: cameraZ, fov },
+      },
+    })
+  }
+
+  const handlePreviewItemCamera = (sectionId: string, itemId: string) => {
+    const cam = findItem(sectionId, itemId)?.cameraOverride?.camera
+    if (cam) {
+      setCameraTargetX(cam.x)
+      setCameraTargetY(cam.y)
+      setCameraTargetZ(cam.z)
+      setCameraTargetFov(cam.fov)
+    }
+  }
+
+  const handleClearItemCamera = (sectionId: string, itemId: string) => {
+    handleUpdateAnimationItem(sectionId, itemId, { cameraOverride: undefined })
+  }
+
+  // --- Per-item highlight override handlers ---
+  const defaultHighlight = (): HighlightOverride => ({
+    enabled: false,
+    mode: 'both',
+    selectedNodeIds: [],
+    selectedMaterialIds: [],
+    nonSelectedStyle: { type: 'overrideColor', color: '#808080', intensity: 1.0 },
+  })
+
+  const handleToggleItemHighlight = (sectionId: string, itemId: string, enabled: boolean) => {
+    const existing = findItem(sectionId, itemId)?.highlight ?? defaultHighlight()
+    handleUpdateAnimationItem(sectionId, itemId, { highlight: { ...existing, enabled } })
+  }
+
+  const handleSetItemHighlightMode = (sectionId: string, itemId: string, mode: 'node' | 'material' | 'both') => {
+    const existing = findItem(sectionId, itemId)?.highlight ?? defaultHighlight()
+    handleUpdateAnimationItem(sectionId, itemId, { highlight: { ...existing, mode } })
+  }
+
+  const handleAddItemSelectedNodes = (sectionId: string, itemId: string, nodeIds: string[]) => {
+    const existing = findItem(sectionId, itemId)?.highlight ?? defaultHighlight()
+    const merged = Array.from(new Set([...existing.selectedNodeIds, ...nodeIds]))
+    handleUpdateAnimationItem(sectionId, itemId, { highlight: { ...existing, selectedNodeIds: merged } })
+  }
+
+  const handleRemoveItemSelectedNode = (sectionId: string, itemId: string, nodeId: string) => {
+    const existing = findItem(sectionId, itemId)?.highlight ?? defaultHighlight()
+    handleUpdateAnimationItem(sectionId, itemId, { highlight: { ...existing, selectedNodeIds: existing.selectedNodeIds.filter((n) => n !== nodeId) } })
+  }
+
+  const handleAddItemSelectedMaterials = (sectionId: string, itemId: string, materialIds: string[]) => {
+    const existing = findItem(sectionId, itemId)?.highlight ?? defaultHighlight()
+    const merged = Array.from(new Set([...existing.selectedMaterialIds, ...materialIds]))
+    handleUpdateAnimationItem(sectionId, itemId, { highlight: { ...existing, selectedMaterialIds: merged } })
+  }
+
+  const handleRemoveItemSelectedMaterial = (sectionId: string, itemId: string, materialId: string) => {
+    const existing = findItem(sectionId, itemId)?.highlight ?? defaultHighlight()
+    handleUpdateAnimationItem(sectionId, itemId, { highlight: { ...existing, selectedMaterialIds: existing.selectedMaterialIds.filter((m) => m !== materialId) } })
+  }
+
+  const handleClearItemHighlightSelection = (sectionId: string, itemId: string) => {
+    const existing = findItem(sectionId, itemId)?.highlight ?? defaultHighlight()
+    handleUpdateAnimationItem(sectionId, itemId, { highlight: { ...existing, selectedNodeIds: [], selectedMaterialIds: [] } })
+  }
+
+  const handleSetItemNonSelectedStyle = (sectionId: string, itemId: string, patch: Partial<NonSelectedStyle>) => {
+    const existing = findItem(sectionId, itemId)?.highlight ?? defaultHighlight()
+    handleUpdateAnimationItem(sectionId, itemId, { highlight: { ...existing, nonSelectedStyle: { ...existing.nonSelectedStyle, ...patch } } })
+  }
+
+  /** Find a specific animation item across sections */
+  const findItem = (sectionId: string, itemId: string) => {
+    const sec = tocSections.find((s) => s.id === sectionId)
+    return sec?.animations?.find((a) => a.id === itemId)
+  }
+
   const handleTocSectionClick = (section: TocSection) => {
     setActiveTocSectionId(section.id)
-    if (section.animationName) {
-      setSelectedAnimation(section.animationName)
-      setAnimationSpeed(section.animationSpeed ?? 1)
-      setAnimationEnabled(true)
+    // Play section animation stack if any
+    const anims = section.animations ?? []
+    if (anims.length > 0) {
+      sectionPlayback.playSection(section.id)
     }
     const hasCamera =
       section.cameraX !== undefined ||
@@ -411,6 +494,7 @@ export default function ViewerPage() {
   }
 
   const [tocHighlightNodes, setTocHighlightNodes] = useState<string[]>([])
+  const [activeItemHighlight, setActiveItemHighlight] = useState<HighlightOverride | null>(null)
 
   const highlightedNodeNames: string[] = (() => {
     const names: string[] = [...tocHighlightNodes]
@@ -512,6 +596,12 @@ export default function ViewerPage() {
       setSelectedAnimation(names[0])
       setAnimationEnabled(true)
     }
+    // Populate clip durations from the model ref
+    const ref = (window as any).__modelRef
+    if (ref?.getClipDurations) {
+      const durations = ref.getClipDurations() as Record<string, number>
+      setClipDurations(durations)
+    }
   }
 
   const handleAnimationPlay = () => {
@@ -554,6 +644,7 @@ export default function ViewerPage() {
         setIsOpen={setTocDrawerOpen}
         sections={tocSections}
         animationNames={animationNames}
+        clipDurations={clipDurations}
         nodeNames={nodeNames}
         onAddSection={handleAddTocSection}
         onRemoveSection={handleRemoveTocSection}
@@ -564,7 +655,30 @@ export default function ViewerPage() {
           if (cam.z !== undefined) setCameraZ(cam.z)
           if (cam.fov !== undefined) setFov(cam.fov)
         }}
-        onAddToTimeline={handleAddShot}
+        onAddAnimationItem={handleAddAnimationItem}
+        onRemoveAnimationItem={handleRemoveAnimationItem}
+        onReorderAnimationItems={handleReorderAnimationItems}
+        onUpdateAnimationItem={handleUpdateAnimationItem}
+        onResetTrim={handleResetTrim}
+        onToggleItemCameraOverride={handleToggleItemCameraOverride}
+        onSetItemCameraFromView={handleSetItemCameraFromView}
+        onPreviewItemCamera={handlePreviewItemCamera}
+        onClearItemCamera={handleClearItemCamera}
+        materialNames={materialNames}
+        onToggleItemHighlight={handleToggleItemHighlight}
+        onSetItemHighlightMode={handleSetItemHighlightMode}
+        onAddItemSelectedNodes={handleAddItemSelectedNodes}
+        onRemoveItemSelectedNode={handleRemoveItemSelectedNode}
+        onAddItemSelectedMaterials={handleAddItemSelectedMaterials}
+        onRemoveItemSelectedMaterial={handleRemoveItemSelectedMaterial}
+        onClearItemHighlightSelection={handleClearItemHighlightSelection}
+        onSetItemNonSelectedStyle={handleSetItemNonSelectedStyle}
+        playbackState={sectionPlayback.state}
+        onPlaySection={sectionPlayback.playSection}
+        onPlayItem={(sectionId, itemId) => sectionPlayback.playItem(sectionId, itemId)}
+        onPauseActive={sectionPlayback.pauseActive}
+        onStopActive={sectionPlayback.stopActive}
+        onSeekItem={(sectionId, itemId, t) => sectionPlayback.seekItem(sectionId, itemId, t)}
       />
       <RightDrawer
         isOpen={rightDrawerOpen}
@@ -785,6 +899,7 @@ export default function ViewerPage() {
           nodeTransforms={nodeTransforms}
           onNodeNamesChange={handleNodeNamesChange}
           highlightedNodeNames={highlightedNodeNames}
+          activeItemHighlight={activeItemHighlight}
           notes={notes}
           showNoteAnnotations={showNoteAnnotations}
           isPlacingNote={isPlacingNote}
@@ -814,14 +929,6 @@ export default function ViewerPage() {
           >
             <Upload className="mr-2 h-4 w-4" />
             Upload New Model
-          </Button>
-          <Button variant="outline" onClick={handleSaveProject} title="Save sections + sequence as JSON">
-            <Download className="mr-2 h-4 w-4" />
-            Save
-          </Button>
-          <Button variant="outline" onClick={handleLoadProject} title="Load sections + sequence from JSON">
-            <FolderOpen className="mr-2 h-4 w-4" />
-            Load
           </Button>
           <Button
             variant="secondary"
@@ -921,27 +1028,6 @@ export default function ViewerPage() {
           </DialogContent>
         </Dialog>
       </div>
-
-      {/* ─── Timeline Panel (bottom) ─── */}
-      <TimelinePanel
-        sequence={sequence}
-        sections={tocSections}
-        currentTime={playback.currentTime}
-        isPlaying={playback.isPlaying}
-        playbackRate={playback.playbackRate}
-        onPlay={playback.play}
-        onPause={playback.pause}
-        onStop={playback.stop}
-        onSeek={playback.seek}
-        onSetPlaybackRate={playback.setPlaybackRate}
-        onUpdateShots={handleUpdateShots}
-        onAddShot={handleAddShot}
-        onRemoveShot={handleRemoveShot}
-        onCreateFromToc={handleCreateFromToc}
-        defaultDuration={defaultShotDuration}
-        onSetDefaultDuration={setDefaultShotDuration}
-        activeShotIndex={playback.state?.activeShotIndex ?? -1}
-      />
     </div>
   )
 }
